@@ -40,7 +40,7 @@ public class Main {
                 userManager.register(newUser);
                 System.out.println("Đăng ký thành công!");
 
-                // 👉 đăng nhập ngay sau khi đăng ký
+
                 System.out.println("\n=== ĐĂNG NHẬP ===");
 
                 System.out.print("Username: ");
