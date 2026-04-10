@@ -9,6 +9,7 @@ public class DatabaseConnection {
     private static final String USER = "root";
     private static final String PASSWORD = "";
 
+    //singleton
     private static Connection connection = null;
 
     private DatabaseConnection() {}
@@ -16,8 +17,9 @@ public class DatabaseConnection {
     public static Connection getConnection() {
         try {
             if (connection == null || connection.isClosed()) {
+                // Load the MySQL JDBC driver
                 Class.forName("com.mysql.cj.jdbc.Driver");
-
+                //get the connection driver
                 connection = DriverManager.getConnection(URL, USER, PASSWORD);
                 System.out.println("Database connection established");
             }

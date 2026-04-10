@@ -1,5 +1,6 @@
 package com.auction.server.core;
 
+import com.auction.server.dao.ItemDAO;
 import com.auction.server.dao.UserDAO;
 import com.auction.shared.dto.LoginDTO;
 import com.auction.shared.dto.RegisterDTO;
@@ -22,15 +23,18 @@ public class ClientHandler implements Runnable {
 
     private Gson gson;
     private UserDAO userDAO;
+    private ItemDAO itemDAO;
 
     public ClientHandler(Socket socket) {
         this.clientSocket = socket;
         this.userDAO = new UserDAO();
         this.gson = new Gson();
+        this.itemDAO = new ItemDAO();
     }
     @Override
     public void run() {
         try {
+            //take input and output streams from the socket
             in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             out = new PrintWriter(clientSocket.getOutputStream(), true);
 
@@ -40,9 +44,11 @@ public class ClientHandler implements Runnable {
             while ((clientMessage = in.readLine()) != null) {
                 System.out.println("[Client " + clientSocket.getPort() + "]: " + clientMessage);
 
+                //make request and trans from json to gson
                 Request request = gson.fromJson(clientMessage, Request.class);
                 Response response = null;
 
+                //take request from ClientMain
                 if(request != null && request.getAction() != null) {
                     switch (request.getAction()) {
                         case "LOGIN":

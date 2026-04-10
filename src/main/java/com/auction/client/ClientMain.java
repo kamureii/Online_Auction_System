@@ -29,6 +29,7 @@ public class ClientMain
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             Scanner scanner = new Scanner(System.in);
 
+            //test login and register feature
             System.out.println("Welcome to ABC AUCTION SERVER");
             System.out.println("1. Login");
             System.out.println("2. Register");
@@ -37,7 +38,7 @@ public class ClientMain
 
             String requestJson = "";
 
-            if (choice.equals("1")) {
+            if (choice.equals("1")) { //test login
                 System.out.println("Please enter your Username or Email: ");
                 String username = scanner.next();
                 System.out.println("Please enter your Password: ");
@@ -46,7 +47,7 @@ public class ClientMain
                 LoginDTO loginData = new LoginDTO(username, password);
                 String payloadJson = gson.toJson(loginData);
             }
-            else {
+            else { //test register
                 System.out.println("Please enter your Username: ");
                 String username = scanner.nextLine();
                 System.out.println("Please enter your Email: ");
@@ -57,11 +58,13 @@ public class ClientMain
                 String fullName = scanner.nextLine();
 
                 RegisterDTO registerData = new RegisterDTO(username, email, password, fullName);
-                requestJson = gson.toJson(new Request("REGISTER", gson.toJson(registerData)));
+                requestJson = gson.toJson(new Request("REGISTER", gson.toJson(registerData))); //make request to Request "REGISTER"
             }
 
+            //send requestJson to run function in ClientHandler
             out.println(requestJson);
 
+            //receive response from server ClientHandler
             String responseJson = in.readLine();
             Response response = gson.fromJson(responseJson, Response.class);
 
