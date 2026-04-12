@@ -1,86 +1,28 @@
 package com.auction.client;
 
-import com.auction.shared.dto.LoginDTO;
-import com.auction.shared.dto.RegisterDTO;
-import com.auction.shared.network.Request;
-import com.auction.shared.network.Response;
-import com.google.gson.Gson;
+import javafx.application.Application;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.Socket;
-import java.rmi.ServerError;
-import java.sql.SQLOutput;
-import java.util.Scanner;
+public class ClientMain extends Application {
 
-public class ClientMain
-{
-    public static void main() throws IOException {
+    @Override
+    public void start(Stage primaryStage) throws Exception {
+        Parent root = FXMLLoader.load(getClass().getResource("/views/Login.fxml"));
 
-        final String SERVER_IP = "localhost";
-        final int PORT = 8080;
+        primaryStage.setTitle("Hệ thống Đấu giá");
+        //phóng to toàn màn hình
+        Scene scene = new Scene(root);
+        primaryStage.setScene(scene);
+        primaryStage.setResizable(true);
+        primaryStage.setMaximized(true);
 
-        Gson gson = new Gson();
+        primaryStage.show();
+    }
 
-        try (Socket socket = new Socket(SERVER_IP, PORT)) {
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            Scanner scanner = new Scanner(System.in);
-
-            //test login and register feature
-            System.out.println("Welcome to ABC AUCTION SERVER");
-            System.out.println("1. Login");
-            System.out.println("2. Register");
-            System.out.println("Choose your choice (1 or 2): ");
-            String choice = scanner.nextLine();
-
-            String requestJson = "";
-
-            if (choice.equals("1")) { //test login
-                System.out.println("Please enter your Username or Email: ");
-                String username = scanner.next();
-                System.out.println("Please enter your Password: ");
-                String password = scanner.next();
-
-                LoginDTO loginData = new LoginDTO(username, password);
-                String payloadJson = gson.toJson(loginData);
-            }
-            else { //test register
-                System.out.println("Please enter your Username: ");
-                String username = scanner.nextLine();
-                System.out.println("Please enter your Email: ");
-                String email = scanner.nextLine();
-                System.out.println("please enter your Password: ");
-                String password = scanner.nextLine();
-                System.out.println("Please enter your Full Name: ");
-                String fullName = scanner.nextLine();
-
-                RegisterDTO registerData = new RegisterDTO(username, email, password, fullName);
-                requestJson = gson.toJson(new Request("REGISTER", gson.toJson(registerData))); //make request to Request "REGISTER"
-            }
-
-            //send requestJson to run function in ClientHandler
-            out.println(requestJson);
-
-            //receive response from server ClientHandler
-            String responseJson = in.readLine();
-            Response response = gson.fromJson(responseJson, Response.class);
-
-            System.out.println("===========================================================");
-
-            if ("SUCCESS".equals(response.getStatus())) {
-                System.out.println("Congratulations: " + response.getMessage());
-                System.out.println("User data: " + response.getPayload());
-            }
-            else {
-                System.out.println("Server error: " + response.getMessage());
-            }
-            System.out.println("===========================================================");
-
-        } catch (IOException e) {
-            System.err.println("Can't connect to server: " + e.getMessage());
-        }
+    public static void main(String[] args) {
+        launch(args);
     }
 }

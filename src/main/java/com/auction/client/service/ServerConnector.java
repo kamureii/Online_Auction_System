@@ -1,62 +1,105 @@
 package com.auction.client.service;
 
+import com.auction.shared.model.User;
 import com.auction.shared.network.Response;
+import java.io.*;
+import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
 
-// ĐÂY LÀ CLASS MÀ ĐỘI UI SẼ GỌI ĐỂ LẤY DỮ LIỆU (ĐANG DÙNG MOCK DATA)
 public class ServerConnector {
+
+    // Đường dẫn file lưu trữ (nằm ngay thư mục gốc của project)
+    private static final String DATABASE_FILE = "users_db.txt";
+
     public Response login(String username, String password) {
-        System.out.println("[Mock API] Đang gọi login với user: " + username);
+        System.out.println("Đang kiểm tra đăng nhập cho: " + username);
 
+        // Check tài khoản admin mặc định
         if (username.equals("admin") && password.equals("123")) {
-            return new Response("SUCCESS", "Đăng nhập thành công!", "{\"id\":1, \"username\":\"admin\", \"role\":\"BIDDER\"}");
-        } else {
-            return new Response("ERROR", "Sai tài khoản hoặc mật khẩu!", null);
+            return new Response("SUCCESS", "Đăng nhập admin thành công!", null);
+        }
+
+        // Đọc file để kiểm tra tài khoản đã đăng ký
+        try {
+            File file = new File(DATABASE_FILE);
+            if (!file.exists()) {
+                return new Response("ERROR", "Tài khoản không tồn tại!", null);
+            }
+
+            BufferedReader reader = new BufferedReader(new FileReader(file));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                // File bây giờ có định dạng: username:password:email:fullname
+                String[] parts = line.split(":");
+                if (parts.length >= 2) { // Đảm bảo có ít nhất user và pass
+                    String storedUser = parts[0];
+                    String storedPass = parts[1];
+
+                    if (storedUser.equals(username) && storedPass.equals(password)) {
+                        reader.close();
+                        return new Response("SUCCESS", "Đăng nhập thành công!", null);
+                    }
+                }
+            }
+            reader.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return new Response("ERROR", "Lỗi hệ thống khi đọc dữ liệu!", null);
+        }
+
+        return new Response("ERROR", "Sai tài khoản hoặc mật khẩu!", null);
+    }
+
+    public Response register(String username, String password, String email, String fullname) {
+        System.out.println("Đang xử lý đăng ký cho: " + username);
+
+        // Kiểm tra tất cả các trường không được để trống
+        if (username == null || username.isEmpty() ||
+                password == null || password.isEmpty() ||
+                email == null || email.isEmpty() ||
+                fullname == null || fullname.isEmpty()) {
+            return new Response("ERROR", "Vui lòng nhập đầy đủ thông tin!", null);
+        }
+
+        // Kiểm tra trùng user đã có trong file
+        if (username.equals("admin") || isUserExists(username)) {
+            return new Response("ERROR", "Tài khoản đã tồn tại!", null);
+        }
+
+        // Ghi dữ liệu mới vào file theo định dạng username:password:email:fullname
+        try (FileWriter fw = new FileWriter(DATABASE_FILE, true);
+             BufferedWriter bw = new BufferedWriter(fw);
+             PrintWriter out = new PrintWriter(bw)) {
+
+            out.println(username + ":" + password + ":" + email + ":" + fullname);
+            return new Response("SUCCESS", "Đăng ký thành công!", null);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            return new Response("ERROR", "Không thể lưu tài khoản vào hệ thống!", null);
         }
     }
 
-    public Response register(String username, String email, String password, String fullName) {
-        System.out.println("[Mock API] Đang gọi register cho user: " + username);
+    // Hàm phụ để check xem tên user đã có trong file chưa
+    private boolean isUserExists(String username) {
+        try {
+            File file = new File(DATABASE_FILE);
+            if (!file.exists()) return false;
 
-        if (username.equals("admin") || email.equals("admin@gmail.com")) {
-            return new Response("ERROR", "Tên đăng nhập hoặc Email đã tồn tại!", null);
+            BufferedReader reader = new BufferedReader(new FileReader(file));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                // Kiểm tra dựa trên phần đầu tiên (username) trước dấu ":"
+                if (line.split(":")[0].equals(username)) {
+                    reader.close();
+                    return true;
+                }
+            }
+            reader.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        return new Response("SUCCESS", "Đăng ký thành công! Vui lòng đăng nhập lại.", null);
-    }
-
-    // (Lưu ý: Tạm thời dùng List<String> cho dễ hiểu.
-    // Khi Thành viên 2 tạo xong class Product, hãy đổi List<String> thành List<Product>)
-    public List<String> getProducts() {
-        System.out.println("[Mock API] Đang lấy danh sách sản phẩm...");
-
-        List<String> mockProducts = new ArrayList<>();
-        mockProducts.add("1 | Laptop Dell XPS 15 | Giá hiện tại: 1500$ | Thời gian còn: 2h");
-        mockProducts.add("2 | iPhone 15 Pro Max  | Giá hiện tại: 999$  | Thời gian còn: 5h");
-        mockProducts.add("3 | Đồng hồ Rolex      | Giá hiện tại: 5000$ | Thời gian còn: 1h");
-
-        return mockProducts;
-    }
-
-    public Response addProduct(String name, double startingPrice, String description) {
-        System.out.println("[Mock API] Đang thêm sản phẩm: " + name);
-
-        if (startingPrice <= 0) {
-            return new Response("ERROR", "Giá khởi điểm phải lớn hơn 0!", null);
-        }
-        return new Response("SUCCESS", "Đăng bán sản phẩm thành công!", null);
-    }
-
-    public Response placeBid(int productId, double bidAmount) {
-        System.out.println("[Mock API] Đang trả giá " + bidAmount + " cho SP có ID: " + productId);
-
-        // Giả sử giá hiện tại của sản phẩm đang là 1500
-        double currentHighestPrice = 1500.0;
-
-        if (bidAmount <= currentHighestPrice) {
-            return new Response("ERROR", "Giá trả phải cao hơn giá hiện tại (" + currentHighestPrice + "$)", null);
-        }
-
-        return new Response("SUCCESS", "Trả giá thành công! Bạn đang dẫn đầu.", null);
+        return false;
     }
 }
