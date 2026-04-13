@@ -99,21 +99,38 @@ public class ClientHandler implements Runnable {
     private Response handleRegister(String payload) throws SQLException {
         RegisterDTO registerData = gson.fromJson(payload, RegisterDTO.class);
 
+        // Server-side validation
+        if (registerData.getUsername() == null || registerData.getUsername().trim().isEmpty()
+                || registerData.getPassword() == null || registerData.getPassword().trim().isEmpty()
+                || registerData.getEmail() == null || registerData.getEmail().trim().isEmpty()
+                || registerData.getFullname() == null || registerData.getFullname().trim().isEmpty()) {
+            return new Response("ERROR", "Vui lòng điền đầy đủ thông tin!", null);
+        }
+
+        // Kiểm tra username đã tồn tại
+        if (userDAO.isUsernameExists(registerData.getUsername())) {
+            return new Response("ERROR", "Tên đăng nhập đã tồn tại!", null);
+        }
+
+        // Kiểm tra email đã tồn tại
+        if (userDAO.isEmailExists(registerData.getEmail())) {
+            return new Response("ERROR", "Email đã được sử dụng!", null);
+        }
+
         User newUser = new User (
                 registerData.getUsername(),
                 registerData.getEmail(),
                 registerData.getPassword(),
-                registerData.getFullname(),
-                "BIDDER"
+                registerData.getFullname()
         );
 
         boolean isSuccess = userDAO.registerUser(newUser);
 
         if(isSuccess) {
-            return new Response("SUCCESS", "Successfully registered user!", newUser.getUsername());
+            return new Response("SUCCESS", "Đăng ký tài khoản thành công!", newUser.getUsername());
         }
         else {
-            return new Response("ERROR", "Username or email existed!", null);
+            return new Response("ERROR", "Đăng ký thất bại! Vui lòng thử lại.", null);
         }
     }
 }
