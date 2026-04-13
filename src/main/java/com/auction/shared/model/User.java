@@ -8,21 +8,19 @@ public class User {
     private String role;
     private String email;
 
-    public User(int id, String username, String password, String fullName, String role, String email) {
+    public User(int id, String username, String password, String fullName, String email) {
         this.id = id;
         this.username = username;
         this.password = password;
         this.fullName = fullName;
-        this.role = role;
         this.email = email;
     }
 
-    public User(String username, String email, String password, String fullName, String role) {
+    public User(String username, String email, String password, String fullName) {
         this.username = username;
         this.email = email;
         this.password = password;
         this.fullName = fullName;
-        this.role = role;
     }
 
     public int getId() {
