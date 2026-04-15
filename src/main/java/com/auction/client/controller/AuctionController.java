@@ -57,7 +57,7 @@ public class AuctionController {
                 currentPrice = bidAmount; // Cập nhật giá mới
                 currentPriceLabel.setText(String.format("%,.0f VNĐ", currentPrice));
                 System.out.println("Cập nhật giá thành công: " + currentPrice);
-                bidAmountField.clear(); // Xóa ô nhập đi cho sạch
+                bidAmountField.clear(); 
             } else {
                 System.out.println("Lỗi: Số tiền phải lớn hơn giá hiện tại!");
             }
