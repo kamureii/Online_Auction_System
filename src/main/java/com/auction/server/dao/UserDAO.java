@@ -9,14 +9,14 @@ import java.sql.SQLException;
 
 public class UserDAO {
     public boolean registerUser(User user) throws SQLException {
-        String sql = "INSERT INTO users (username, email, password, full_name) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO users (username, email, password, fullname) VALUES (?, ?, ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, user.getUsername());
                 ps.setString(2, user.getEmail());
                 ps.setString(3, user.getPassword());
-                ps.setString(4, user.getFullName());
+                ps.setString(4, user.getFullname());
 
                 int rowsAffected = ps.executeUpdate();
                 return (rowsAffected > 0);
@@ -74,7 +74,7 @@ public class UserDAO {
                         rs.getInt("id"),
                         rs.getString("username"),
                         rs.getString("password"),
-                        rs.getString("full_name"),
+                        rs.getString("fullname"),
                         rs.getString("email")
                 );
             }
