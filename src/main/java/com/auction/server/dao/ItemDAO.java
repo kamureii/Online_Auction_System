@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ItemDAO {
-    public List<Item> GetAllItems() {
+    public static List<Item> GetAllItems() {
         List<Item> items = new ArrayList<>();
         String sql = "SELECT * FROM items ORDER BY id DESC"; //take the newest items first
         try (Connection conn = DatabaseConnection.getConnection();
@@ -26,7 +26,7 @@ public class ItemDAO {
         return items;
     }
 
-    public boolean AddItem(Item item) throws SQLException {
+    public static boolean AddItem(Item item) throws SQLException {
         String sql = "INSERT INTO items (name, description, starting_price, current_price, minimum_step, owner_id, end_time) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {

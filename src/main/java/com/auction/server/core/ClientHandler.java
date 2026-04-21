@@ -1,9 +1,11 @@
 package com.auction.server.core;
 
+import com.auction.server.dao.BidDAO;
 import com.auction.server.dao.ItemDAO;
 import com.auction.server.dao.UserDAO;
 import com.auction.shared.dto.LoginDTO;
 import com.auction.shared.dto.RegisterDTO;
+import com.auction.shared.model.Bid;
 import com.auction.shared.model.User;
 import com.auction.shared.network.Request;
 import com.auction.shared.network.Response;
@@ -57,6 +59,15 @@ public class ClientHandler implements Runnable {
                         case "REGISTER":
                             response = handleRegister(request.getPayload());
                             break;
+                        case "GET_ITEMS":
+                            response = handleGetItems();
+                            break;
+                        case "ADD_ITEM":
+                            response = handleAddItem(request.getPayload());
+                            break;
+                        case "PLACE_BID":
+                            response = handlePlaceBid(request.getPayload());
+                            break;
                         default:
                             response = new Response("ERROR", "Invalid Action!", null);
                             break;
@@ -79,6 +90,36 @@ public class ClientHandler implements Runnable {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    private Response handleGetItems() {
+        java.util.List<com.auction.shared.model.Item> products = ItemDAO.GetAllItems();
+        String productsJson = gson.toJson(products);
+        return new Response("SUCCESS", "Get products successfully!", productsJson);
+    }
+
+    private Response handleAddItem(String payload) throws SQLException {
+        com.auction.shared.model.Item newProduct = gson.fromJson(payload, com.auction.shared.model.Item.class);
+        boolean isSuccess = ItemDAO.AddItem(newProduct);
+
+        if (isSuccess) {
+            return new Response("SUCCESS", "Added a product successfully!", null);
+        } else {
+            return new Response("ERROR", "Error: Failed uploading a product!", null);
+        }
+    }
+
+    private Response handlePlaceBid(String payload) throws SQLException {
+        Bid newBid = gson.fromJson(payload, Bid.class);
+
+        String result = BidDAO.placeBid(newBid);
+
+        if(result.equals("SUCCESS")) {
+            return new Response("SUCCESS", "Bid placed successfully!", null);
+        }
+        else {
+            return new Response("ERROR", result, null);
         }
     }
 
