@@ -13,16 +13,17 @@ import javafx.util.Pair;
 
 import java.util.List;
 import java.util.Optional;
-
-// import com.auction.client.connector.ServerConnector;
+import com.auction.client.service.ServerConnector;
+import com.auction.shared.model.Item;
+import java.sql.Timestamp;
 
 public class DashboardController {
 
-    @FXML private TableView<Product> productTable;
-    @FXML private TableColumn<Product, String> colName;
-    @FXML private TableColumn<Product, Double> colPrice;
+    @FXML private TableView<Item> productTable;
+    @FXML private TableColumn<Item, String> colName;
+    @FXML private TableColumn<Item, Double> colPrice;
 
-    private ObservableList<Product> productList = FXCollections.observableArrayList();
+    private ObservableList<Item> productList = FXCollections.observableArrayList();
 
     // Khởi tạo ServerConnector để gọi dữ liệu
     private ServerConnector serverConnector = new ServerConnector();
@@ -30,7 +31,7 @@ public class DashboardController {
     @FXML
     public void initialize() {
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));
-        colPrice.setCellValueFactory(new PropertyValueFactory<>("price"));
+        colPrice.setCellValueFactory(new PropertyValueFactory<>("currentPrice"));
 
         //Gọi dữ liệu từ ServerConnector thay vì loadMockData() tại chỗ
         refreshProductList();
@@ -39,7 +40,7 @@ public class DashboardController {
 
         productTable.setOnMouseClicked(event -> {
             if (event.getButton().equals(MouseButton.PRIMARY) && event.getClickCount() == 2) {
-                Product selectedProduct = productTable.getSelectionModel().getSelectedItem();
+                Item selectedProduct = productTable.getSelectionModel().getSelectedItem();
                 if (selectedProduct != null) {
                     handleSwitchToDetail(selectedProduct);
                 }
@@ -49,15 +50,8 @@ public class DashboardController {
 
     private void refreshProductList() {
         productList.clear();
-
-        // Lấy list String từ ServerConnector
-        List<String> rawData = serverConnector.getProducts();
-
-        // Chuyển đổi từ String (data thô) sang Object Product để hiển thị lên bảng
-        for (String item : rawData) {
-            //Tách chuỗi để lấy tên và giá
-            productList.add(new Product(item, 0.0));
-        }
+        List<Item> rawData = serverConnector.getProducts();
+        productList.addAll(rawData);
     }
 
     @FXML
@@ -95,8 +89,13 @@ public class DashboardController {
         result.ifPresent(data -> {
             try {
                 String name = data.getKey();
-                // Gửi dữ liệu sang ServerConnector để xử lý thay vì add trực tiếp vào list
-                // serverConnector.addProduct(name, data.getValue());
+                double price = Double.parseDouble(data.getValue());
+
+                int ownerId = (ServerConnector.currentUser != null) ? ServerConnector.currentUser.getId() : 1;
+                Timestamp endTime = new Timestamp(System.currentTimeMillis() + 86400000L); // 1 day
+
+                Item newItem = new Item(name, "Description for " + name, price, price, 10, ownerId, endTime);
+                serverConnector.addProduct(newItem);
 
                 // Sau đó nạp lại bảng
                 refreshProductList();
@@ -110,8 +109,14 @@ public class DashboardController {
         });
     }
 
-    private void handleSwitchToDetail(Product product) {
+    private void handleSwitchToDetail(Item product) {
         System.out.println("Đang chuyển sang chi tiết sản phẩm: " + product.getName());
+        try {
+            AuctionController myController = new AuctionController();
+            myController.loadAuctionRoom(product.getId(), product.getName(), product.getCurrentPrice());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public static class Product {

@@ -1,14 +1,81 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import java.lang.*?>
-<?import java.util.*?>
-<?import javafx.scene.*?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
 
-<AnchorPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="CONTROLLER_NAME"
-            prefHeight="400.0" prefWidth="600.0">
+<AnchorPane prefHeight="600.0" prefWidth="900.0" style="-fx-background-color: #f0f0f0;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.client.controller.AuctionController">
+    <children>
 
+        <Pane layoutX="0.0" layoutY="0.0" prefHeight="80.0" prefWidth="900.0" style="-fx-background-color: linear-gradient(#b21e15, #8e1911); -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.4), 10, 0, 0, 4);">
+            <children>
+                <Label layoutX="30.0" layoutY="20.0" text="PHÒNG ĐẤU GIÁ TRỰC TUYẾN" textFill="white">
+                    <font>
+                        <Font name="System Bold" size="28.0" />
+                    </font>
+                </Label>
+            </children>
+        </Pane>
+
+        <VBox alignment="TOP_CENTER" layoutY="117.0" prefHeight="480.0" prefWidth="900.0" spacing="30.0">
+            <children>
+
+                <Label fx:id="productNameLabel" style="-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);" text="TÊN SẢN PHẨM" textFill="#2c3e50">
+                    <font>
+                        <Font name="System Bold" size="48.0" />
+                    </font>
+                </Label>
+
+                <VBox alignment="CENTER" maxWidth="450.0" prefHeight="116.0" prefWidth="409.0" spacing="10.0" style="-fx-background-color: #ffffff; -fx-background-radius: 20; -fx-border-color: #b21e15; -fx-border-width: 2; -fx-border-radius: 18; -fx-padding: 20; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 15, 0, 0, 10);">
+                    <children>
+                        <Label text="Giá cao nhất hiện tại:" textFill="#7f8c8d">
+                            <font>
+                                <Font size="22.0" />
+                            </font>
+                        </Label>
+                        <Label fx:id="currentPriceLabel" text="0 VNĐ" textFill="#b21e15">
+                            <font>
+                                <Font name="System Bold" size="36.0" />
+                            </font>
+                        </Label>
+                    </children>
+                </VBox>
+
+                <HBox alignment="CENTER" maxWidth="350.0" prefWidth="350.0" style="-fx-background-color: #2d3436; -fx-background-radius: 15; -fx-padding: 10; -fx-border-color: #636e72; -fx-border-width: 2; -fx-border-radius: 13;">
+                    <children>
+                        <Label fx:id="timerLabel" style="-fx-effect: dropshadow(three-pass-box, rgba(39,174,96,0.7), 20, 0, 0, 0);" text="00:45" textFill="#27ae60">
+                            <font>
+                                <Font name="System Bold" size="72.0" />
+                            </font>
+                        </Label>
+                    </children>
+                </HBox>
+
+                <Separator maxWidth="600.0" style="-fx-background-color: #b21e15; -fx-pref-height: 2;" />
+
+                <HBox alignment="CENTER" maxWidth="550.0" prefWidth="550.0" spacing="20.0" style="-fx-background-color: #ffffff; -fx-background-radius: 15; -fx-padding: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 5);">
+                    <children>
+                        <TextField fx:id="bidAmountField" prefHeight="50.0" prefWidth="300.0" promptText="Nhập số tiền lớn hơn giá hiện tại..." style="-fx-background-radius: 10; -fx-border-color: #aed6f1; -fx-border-radius: 8;">
+                            <font>
+                                <Font size="16.0" />
+                            </font>
+                        </TextField>
+
+                        <Button fx:id="bidButton" mnemonicParsing="false" onAction="#handlePlaceBid" prefHeight="50.0" prefWidth="140.0" style="-fx-background-color: linear-gradient(#b21e15, #d63031); -fx-text-fill: white; -fx-background-radius: 25; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 10, 0, 0, 5);" text="Trả giá">
+                            <font>
+                                <Font name="System Bold" size="20.0" />
+                            </font>
+                        </Button>
+                    </children>
+                </HBox>
+
+            </children>
+        </VBox>
+    </children>
 </AnchorPane>
