@@ -1,14 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import java.lang.*?>
-<?import java.util.*?>
-<?import javafx.scene.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.text.Font?>
 
-<AnchorPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="CONTROLLER_NAME"
-            prefHeight="400.0" prefWidth="600.0">
+<VBox spacing="20" alignment="TOP_CENTER" prefHeight="600.0" prefWidth="850.0"
+      styleClass="root" stylesheets="@style.css"
+      xmlns="http://javafx.com" xmlns:fx="http://javafx.com"
+      fx:controller="com.auction.client.controller.DashboardController">
 
-</AnchorPane>
+    <padding>
+        <Insets top="30" right="40" bottom="30" left="40" />
+    </padding>
+
+    <children>
+        <Label text="HỆ THỐNG ĐẤU GIÁ TRỰC TUYẾN" styleClass="brand-label">
+            <font>
+                <Font name="System Bold" size="24.0" />
+            </font>
+        </Label>
+
+        <Label text="Danh sách sản phẩm đang đấu giá" styleClass="input-label" />
+
+        <TableView fx:id="productTable" VBox.vgrow="ALWAYS" styleClass="custom-table">
+            <columns>
+                <TableColumn fx:id="colName" text="Tên Sản Phẩm" prefWidth="500.0" />
+                <TableColumn fx:id="colPrice" text="Giá Khởi Điểm (VNĐ)" prefWidth="250.0" />
+            </columns>
+            <placeholder>
+                <Label text="Chưa có sản phẩm nào được đăng bán" />
+            </placeholder>
+        </TableView>
+
+        <HBox alignment="CENTER">
+            <Button text="Đăng bán sản phẩm mới"
+                    onAction="#handleOpenAddForm"
+                    styleClass="login-button"
+                    prefWidth="300.0" />
+        </HBox>
+    </children>
+</VBox>
