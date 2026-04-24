@@ -6,7 +6,7 @@ CREATE TABLE users (
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    full_name VARCHAR(100) NOT NULL,
+    fullname VARCHAR(100) NOT NULL,
     role ENUM('ADMIN', 'SELLER', 'BIDDER') NOT NULL DEFAULT 'BIDDER',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -17,7 +17,10 @@ CREATE TABLE items (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     starting_price DECIMAL(15, 2) NOT NULL, -- Dùng DECIMAL cho tiền tệ để tránh sai số
+    min_increment DECIMAL(15, 2) NOT NULL,
+    current_price DECIMAL(15, 2) DEFAULT starting_price,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    end_time DATETIME DEFAULT NULL,
     FOREIGN KEY (seller_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -43,5 +46,5 @@ CREATE TABLE bids (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-INSERT INTO users (username, password, full_name) VALUES ('admin', '123456', 'Người Quản Trị');
+INSERT INTO users (username, password, fullname) VALUES ('admin', '123456', 'Người Quản Trị');
 INSERT INTO items (name, starting_price, min_increment) VALUES ('iPhone 15 Pro', 1000, 50);

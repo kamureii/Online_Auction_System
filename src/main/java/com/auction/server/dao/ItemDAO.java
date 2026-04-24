@@ -18,7 +18,7 @@ public class ItemDAO {
             PreparedStatement ps = conn.prepareStatement(sql);
             ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                items.add(new Item(rs.getInt("id"), rs.getString("name"), rs.getString("description"), rs.getDouble("starting_price"), rs.getDouble("current_price"), rs.getInt("minimum_step"), rs.getInt("owner_id"), rs.getTimestamp("end_time")));
+                items.add(new Item(rs.getInt("id"), rs.getString("name"), rs.getString("description"), rs.getDouble("starting_price"), rs.getDouble("current_price"), rs.getInt("min_increment"), rs.getInt("seller_id"), rs.getTimestamp("end_time")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -27,17 +27,17 @@ public class ItemDAO {
     }
 
     public static boolean AddItem(Item item) {
-        String sql = "INSERT INTO items (name, description, starting_price, current_price, minimum_step, owner_id, end_time) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try {
+        String sql = "INSERT INTO items (name, description, starting_price, current_price, min_increment, seller_id, end_time) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
             System.out.println("Attempting to add item to database: " + item.getName());
             
-            Connection conn = DatabaseConnection.getConnection();
             if (conn == null || conn.isClosed()) {
                 System.err.println("Database connection is null or closed!");
                 return false;
             }
             
-            PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, item.getName());
             ps.setString(2, item.getDescription());
             ps.setDouble(3, item.getStartingPrice());
@@ -53,8 +53,7 @@ public class ItemDAO {
                              ", endTime=" + item.getEndTime());
             
             int rowInserted = ps.executeUpdate();
-            ps.close();
-            
+
             System.out.println("Rows inserted: " + rowInserted);
             return rowInserted > 0;
             
