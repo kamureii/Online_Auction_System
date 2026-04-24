@@ -26,10 +26,18 @@ public class ItemDAO {
         return items;
     }
 
-    public static boolean AddItem(Item item) throws SQLException {
+    public static boolean AddItem(Item item) {
         String sql = "INSERT INTO items (name, description, starting_price, current_price, minimum_step, owner_id, end_time) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try {
+            System.out.println("Attempting to add item to database: " + item.getName());
+            
+            Connection conn = DatabaseConnection.getConnection();
+            if (conn == null || conn.isClosed()) {
+                System.err.println("Database connection is null or closed!");
+                return false;
+            }
+            
+            PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, item.getName());
             ps.setString(2, item.getDescription());
             ps.setDouble(3, item.getStartingPrice());
@@ -37,9 +45,27 @@ public class ItemDAO {
             ps.setInt(5, item.getMinimumStep());
             ps.setInt(6, item.getOwnerId());
             ps.setTimestamp(7, item.getEndTime());
+            
+            System.out.println("Executing SQL: " + sql);
+            System.out.println("Parameters: name=" + item.getName() + ", desc=" + item.getDescription() + 
+                             ", startPrice=" + item.getStartingPrice() + ", currentPrice=" + item.getCurrentPrice() + 
+                             ", minStep=" + item.getMinimumStep() + ", ownerId=" + item.getOwnerId() + 
+                             ", endTime=" + item.getEndTime());
+            
             int rowInserted = ps.executeUpdate();
+            ps.close();
+            
+            System.out.println("Rows inserted: " + rowInserted);
             return rowInserted > 0;
+            
         } catch (SQLException e) {
+            System.err.println("SQL Error in AddItem: " + e.getMessage());
+            System.err.println("SQL State: " + e.getSQLState());
+            System.err.println("Error Code: " + e.getErrorCode());
+            e.printStackTrace();
+            return false;
+        } catch (Exception e) {
+            System.err.println("General Error in AddItem: " + e.getMessage());
             e.printStackTrace();
             return false;
         }

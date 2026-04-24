@@ -99,14 +99,31 @@ public class ClientHandler implements Runnable {
         return new Response("SUCCESS", "Get products successfully!", productsJson);
     }
 
-    private Response handleAddItem(String payload) throws SQLException {
-        com.auction.shared.model.Item newProduct = gson.fromJson(payload, com.auction.shared.model.Item.class);
-        boolean isSuccess = ItemDAO.AddItem(newProduct);
+    private Response handleAddItem(String payload) {
+        try {
+            System.out.println("Received ADD_ITEM request with payload: " + payload);
+            
+            com.auction.shared.model.Item newProduct = gson.fromJson(payload, com.auction.shared.model.Item.class);
+            
+            if (newProduct == null) {
+                return new Response("ERROR", "Invalid item data received!", null);
+            }
+            
+            System.out.println("Parsed item: " + newProduct.getName() + ", Price: " + newProduct.getStartingPrice());
+            
+            boolean isSuccess = ItemDAO.AddItem(newProduct);
 
-        if (isSuccess) {
-            return new Response("SUCCESS", "Added a product successfully!", null);
-        } else {
-            return new Response("ERROR", "Error: Failed uploading a product!", null);
+            if (isSuccess) {
+                System.out.println("Successfully added item: " + newProduct.getName());
+                return new Response("SUCCESS", "Added a product successfully!", null);
+            } else {
+                System.err.println("Failed to add item: " + newProduct.getName());
+                return new Response("ERROR", "Database error: Failed to save item to database!", null);
+            }
+        } catch (Exception e) {
+            System.err.println("Error in handleAddItem: " + e.getMessage());
+            e.printStackTrace();
+            return new Response("ERROR", "Server error: " + e.getMessage(), null);
         }
     }
 

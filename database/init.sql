@@ -42,3 +42,6 @@ CREATE TABLE bids (
     FOREIGN KEY (auction_id) REFERENCES auction_sessions(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+INSERT INTO users (username, password, full_name) VALUES ('admin', '123456', 'Người Quản Trị');
+INSERT INTO items (name, starting_price, min_increment) VALUES ('iPhone 15 Pro', 1000, 50);
