@@ -1,5 +1,4 @@
 package com.auction.server.dao;
-import com.auction.server.dao.DatabaseConnection;
 import com.auction.shared.model.Bid;
 
 import java.sql.Connection;
@@ -25,9 +24,9 @@ public class BidDAO {
     }
 
     public static String placeBid(Bid bid) throws SQLException {
-        String insertBidSql = "INSERT INTO bids (user_id, item_id, amount) VALUES (?, ?, ?)";
-        String updateProductSql = "UPDATE products SET current_price = ? WHERE id = ?";
-        String checkSql = "SELECT current_price, min_increment FROM products WHERE id = ?";
+        String insertBidSql = "INSERT INTO bids (user_id, auction_id, bid_amount) VALUES (?, ?, ?)";
+        String checkSql = "SELECT current_price, min_increment FROM items WHERE id = ?";
+        String findAuctionSql = "SELECT id FROM auction_sessions WHERE item_id = ? ORDER BY id DESC LIMIT 1";
         Connection conn = null;
         try {
             conn = DatabaseConnection.getConnection();
@@ -37,36 +36,63 @@ public class BidDAO {
 
             try (PreparedStatement pstmt = conn.prepareStatement(checkSql)) {
                 pstmt.setInt(1, bid.getItemId());
-                ResultSet rs = pstmt.executeQuery();
-                if (rs.next()) {
-                    currentPrice = rs.getDouble("current_price");
-                    minIncrement = rs.getDouble("min_increment");
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next()) {
+                        currentPrice = rs.getDouble("current_price");
+                        minIncrement = rs.getDouble("min_increment");
+                    }
                 }
             }
-            
+
             double minRequiredBid = currentPrice + minIncrement;
             if (bid.getAmount() < minRequiredBid) {
+                conn.rollback();
                 return "Giá trả không hợp lệ! Bạn phải trả ít nhất là " + minRequiredBid + " (Giá hiện tại + Bước giá " + minIncrement + ")";
             }
 
+            // Look up the correct auction session ID for this item
+            int auctionId = -1;
+            try (PreparedStatement pstmt = conn.prepareStatement(findAuctionSql)) {
+                pstmt.setInt(1, bid.getItemId());
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next()) {
+                        auctionId = rs.getInt("id");
+                    }
+                }
+            }
+
+            if (auctionId == -1) {
+                conn.rollback();
+                return "ERROR: No active auction session found for this item!";
+            }
+
             try (PreparedStatement stmt1 = conn.prepareStatement(insertBidSql)) {
-                stmt1.setInt(1, bid.getItemId());
-                stmt1.setInt(2, bid.getUserId());
+                stmt1.setInt(1, bid.getUserId());
+                stmt1.setInt(2, auctionId);  // Use the actual auction session ID
                 stmt1.setDouble(3, bid.getAmount());
                 stmt1.executeUpdate();
             }
-            // Cập nhật giá mới cho bảng products
-            try (PreparedStatement stmt2 = conn.prepareStatement(updateProductSql)) {
-                stmt2.setDouble(1, bid.getAmount());
-                stmt2.setInt(2, bid.getItemId());
-                stmt2.executeUpdate();
-            }
 
             conn.commit();
-            return "SUCCESS";
+            return "Đặt giá thành công!";
         } catch (SQLException e) {
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackEx) {
+                    rollbackEx.printStackTrace();
+                }
+            }
             e.printStackTrace();
-            return "ERROR: " + e.getMessage() + "";
+            return "ERROR: " + e.getMessage();
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 }

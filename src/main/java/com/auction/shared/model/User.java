@@ -8,6 +8,7 @@ public class User {
     private String role;
     private String email;
 
+    //for old user
     public User(int id, String username, String password, String fullName, String email) {
         this.id = id;
         this.username = username;
@@ -16,6 +17,7 @@ public class User {
         this.email = email;
     }
 
+    //for new user
     public User(String username, String email, String password, String fullName) {
         this.username = username;
         this.email = email;
