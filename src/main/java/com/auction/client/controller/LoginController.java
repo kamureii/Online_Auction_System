@@ -1,72 +1,76 @@
 package com.auction.client.controller;
 
 import com.auction.client.service.ServerConnector;
+import com.auction.shared.network.Response;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.paint.Color;
 import javafx.event.ActionEvent;
-
-// Import để chuyển màn hình
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
-// Import Response trả về từ server
-import com.auction.shared.network.Response;
-
 public class LoginController {
-    @FXML
-    private TextField usernameField; // Liên kết với fx:id trong FXML
-    @FXML
-    private PasswordField passwordField; // Liên kết với ô nhập password trong FXML
-    @FXML
-    private Label messageLabel; //Hiện thông báo (thành công / lỗi)
+    @FXML private TextField usernameField;
+    @FXML private PasswordField passwordField;
+    @FXML private Label messageLabel;
 
     @FXML
     private void goToRegister() {
         try {
             Parent root = FXMLLoader.load(getClass().getResource("/views/Register.fxml"));
-
             Stage stage = (Stage) usernameField.getScene().getWindow();
-
-            // Thay đổi Scene
             stage.setScene(new Scene(root));
             stage.show();
         } catch (Exception e) {
-            System.err.println("Lỗi khi chuyển sang màn hình Đăng ký: " + e.getMessage());
             e.printStackTrace();
         }
     }
-    // Hàm xử lý khi bấm nút "Đăng nhập"
+
     @FXML
-    private void handleLogin(ActionEvent event){
-
-        // Lấy dữ liệu người dùng nhập
-        String username = usernameField.getText();
+    private void handleLogin(ActionEvent event) {
+        String username = usernameField.getText().trim();
         String password = passwordField.getText();
-        ServerConnector server = new ServerConnector();
-        Response res = server.login(username, password);
 
-// Kiểm tra kết quả trả về
-        if (res.getStatus().equals("SUCCESS")) {
+        if (username.isEmpty() || password.isEmpty()) {
+            showError("Vui lòng nhập đầy đủ thông tin!");
+            return;
+        }
 
-            // Hiện chữ xanh
+        // Đảm bảo kết nối tới server
+        ServerConnector connector = ServerConnector.getInstance();
+        if (!connector.isConnected()) {
+            if (!connector.connect()) {
+                showError("Không thể kết nối tới server! Hãy kiểm tra server.");
+                return;
+            }
+        }
+
+        Response res = connector.login(username, password);
+
+        if (res != null && "SUCCESS".equals(res.getStatus())) {
             messageLabel.setTextFill(Color.GREEN);
-            messageLabel.setText("Thành công");
+            messageLabel.setText("Đăng nhập thành công!");
 
-            try{ // Chuyển sang màn Dashboard
+            try {
                 Parent root = FXMLLoader.load(getClass().getResource("/views/Dashboard.fxml"));
                 Stage stage = (Stage) usernameField.getScene().getWindow();
                 stage.setScene(new Scene(root));
-            }
-            catch (Exception e){
+                stage.setResizable(false);
+                stage.sizeToScene();
+                stage.show();
+            } catch (Exception e) {
                 e.printStackTrace();
             }
-        } else {    // Hiện lỗi màu đỏ
-            messageLabel.setTextFill(Color.RED);
-            messageLabel.setText("Sai tài khoản hoặc mật khẩu");
+        } else {
+            showError(res != null ? res.getMessage() : "Không thể kết nối tới server!");
         }
+    }
+
+    private void showError(String message) {
+        messageLabel.setTextFill(Color.RED);
+        messageLabel.setText(message);
     }
 }
