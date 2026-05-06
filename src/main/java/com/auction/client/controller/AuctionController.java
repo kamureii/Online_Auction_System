@@ -11,6 +11,7 @@ import javafx.animation.Timeline;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
@@ -50,8 +51,8 @@ public class AuctionController implements AuctionEventListener {
     @FXML private TableColumn<Bid, Timestamp> colTime;
 
     // Price Chart
-    @FXML private LineChart<Number, Number> priceChart;
-    @FXML private NumberAxis xAxis;
+    @FXML private LineChart<String, Number> priceChart;
+    @FXML private CategoryAxis xAxis;
     @FXML private NumberAxis yAxis;
 
     // Auto-bid
@@ -63,13 +64,12 @@ public class AuctionController implements AuctionEventListener {
 
     private final ServerConnector connector = ServerConnector.getInstance();
     private final ObservableList<Bid> bidHistoryList = FXCollections.observableArrayList();
-    private XYChart.Series<Number, Number> priceSeries;
+    private XYChart.Series<String, Number> priceSeries;
 
     private int currentAuctionId;
     private double currentPrice;
     private long endTimeMillis;
     private Timeline countdownTimeline;
-    private int chartIndex = 0;
 
     @FXML
     public void initialize() {
@@ -102,7 +102,9 @@ public class AuctionController implements AuctionEventListener {
         priceSeries.setName("Giá đấu");
         priceChart.getData().add(priceSeries);
         priceChart.setCreateSymbols(true);
-        priceChart.setAnimated(false);
+        priceChart.setAnimated(true); // Bật hiệu ứng mượt mà
+        
+        yAxis.setTickLabelFormatter(new NumberAxis.DefaultFormatter(yAxis, null, " VNĐ"));
 
         // Đăng ký Observer
         connector.addEventListener(this);
@@ -139,7 +141,9 @@ public class AuctionController implements AuctionEventListener {
         loadBidHistory();
 
         // Thêm điểm đầu tiên vào biểu đồ
-        priceSeries.getData().add(new XYChart.Data<>(chartIndex++, currentPrice));
+        if (priceSeries.getData().isEmpty()) {
+            priceSeries.getData().add(new XYChart.Data<>(formatTime(System.currentTimeMillis()), currentPrice));
+        }
     }
 
     // ========================= COUNTDOWN TIMER =========================
@@ -263,11 +267,11 @@ public class AuctionController implements AuctionEventListener {
 
         // Cập nhật biểu đồ từ lịch sử
         priceSeries.getData().clear();
-        chartIndex = 0;
         List<Bid> reversed = new java.util.ArrayList<>(history);
         Collections.reverse(reversed);
         for (Bid bid : reversed) {
-            priceSeries.getData().add(new XYChart.Data<>(chartIndex++, bid.getBidAmount()));
+            long bidTime = bid.getBidTime() != null ? bid.getBidTime().getTime() : System.currentTimeMillis();
+            priceSeries.getData().add(new XYChart.Data<>(formatTime(bidTime), bid.getBidAmount()));
         }
     }
 
@@ -280,8 +284,6 @@ public class AuctionController implements AuctionEventListener {
             currentPriceLabel.setText(String.format("%,.0f VNĐ", currentPrice));
 
             // Thêm điểm mới vào biểu đồ (realtime)
-            priceSeries.getData().add(new XYChart.Data<>(chartIndex++, event.getNewPrice()));
-
             // Refresh lịch sử bid
             loadBidHistory();
 
@@ -334,6 +336,11 @@ public class AuctionController implements AuctionEventListener {
             messageLabel.setText(msg);
             messageLabel.setTextFill(color);
         }
+    }
+
+    private String formatTime(long millis) {
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+        return sdf.format(new java.util.Date(millis));
     }
 
     /**
