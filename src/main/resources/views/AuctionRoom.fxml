@@ -108,8 +108,8 @@
 
                     <!-- Price Chart -->
                     <LineChart fx:id="priceChart" prefHeight="250" style="-fx-background-color: transparent;">
-                        <xAxis><NumberAxis fx:id="xAxis" label="Lượt bid" autoRanging="true" /></xAxis>
-                        <yAxis><NumberAxis fx:id="yAxis" label="Giá (VNĐ)" autoRanging="true" /></yAxis>
+                        <xAxis><CategoryAxis fx:id="xAxis" label="Thời Gian" animated="false" /></xAxis>
+                        <yAxis><NumberAxis fx:id="yAxis" label="Giá" autoRanging="true" /></yAxis>
                     </LineChart>
 
                     <Separator />

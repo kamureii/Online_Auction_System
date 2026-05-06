@@ -1,81 +1,203 @@
 .root {
     -fx-font-family: "Segoe UI", Arial, sans-serif;
-    -fx-background-color: #f0f0f0; /* Nền xám nhạt phía sau modal */
+    -fx-background-color: #f7f9fc;
 }
 
-/* Khung trắng bo góc */
+/* Base Panel Styles */
 .login-container {
     -fx-background-color: white;
     -fx-padding: 40;
     -fx-spacing: 15;
-    -fx-background-radius: 10;
-    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 20, 0, 0, 0);
+    -fx-background-radius: 12;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.1), 15, 0, 0, 5);
 }
 
-
+/* Header & Brand */
 .brand-label {
-    -fx-text-fill: #b21e15; /* Màu đỏ đô chuẩn */
-    -fx-font-size: 22px;
+    -fx-text-fill: #e74c3c;
+    -fx-font-size: 26px;
     -fx-font-weight: bold;
 }
 
-/* Nhãn phía trên ô nhập (Tên đăng nhập / Mật khẩu) */
 .input-label {
     -fx-font-size: 14px;
-    -fx-text-fill: #333333;
-    -fx-font-weight: bold;
+    -fx-text-fill: #2c3e50;
+    -fx-font-weight: 600;
 }
 
-/* Định dạng ô nhập liệu */
+/* Inputs */
 .text-field, .password-field {
-    -fx-background-color: white;
-    -fx-border-color: #e0e0e0;
-    -fx-border-radius: 5;
-    -fx-background-radius: 5;
-    -fx-padding: 10;
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dcdde1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-padding: 10 15;
+    -fx-font-size: 14px;
+    -fx-text-fill: #2f3640;
+}
+
+.text-field:focused, .password-field:focused {
+    -fx-border-color: #e74c3c;
+    -fx-border-width: 2;
+    -fx-background-color: #fffafa;
+}
+
+.combo-box {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dcdde1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-padding: 5;
     -fx-font-size: 14px;
 }
 
-/* Hiệu ứng khi click vào ô nhập */
-.text-field:focused, .password-field:focused {
-    -fx-border-color: #b21e15;
-    -fx-border-width: 1.5;
+.combo-box:focused {
+    -fx-border-color: #e74c3c;
 }
 
-/* Nút ĐĂNG NHẬP / ĐĂNG KÝ màu đỏ rộng toàn màn hình */
+/* Buttons */
 .login-button {
-    -fx-background-color: #b21e15;
+    -fx-background-color: #e74c3c;
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-font-size: 16px;
-    -fx-padding: 12;
-    -fx-background-radius: 5;
+    -fx-font-size: 15px;
+    -fx-padding: 10 20;
+    -fx-background-radius: 20;
     -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(231, 76, 60, 0.4), 8, 0, 0, 2);
 }
 
 .login-button:hover {
-    -fx-background-color: #8e1811;
+    -fx-background-color: #c0392b;
+    -fx-effect: dropshadow(gaussian, rgba(231, 76, 60, 0.6), 12, 0, 0, 3);
 }
 
-/* Các link chữ màu đỏ (Đăng ký / Đăng nhập) */
+.login-button:pressed {
+    -fx-background-color: #a53024;
+    -fx-translate-y: 1;
+}
+
+.secondary-button {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-padding: 8 16;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+}
+
+.secondary-button:hover {
+    -fx-background-color: #2980b9;
+}
+
+.cancel-button {
+    -fx-background-color: #95a5a6;
+    -fx-text-fill: white;
+    -fx-padding: 8 16;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+}
+
+.cancel-button:hover {
+    -fx-background-color: #7f8c8d;
+}
+
+/* Links */
 .link-text {
-    -fx-text-fill: #b21e15;
+    -fx-text-fill: #e74c3c;
     -fx-font-weight: bold;
     -fx-cursor: hand;
 }
+
 .link-text:hover {
     -fx-underline: true;
+    -fx-text-fill: #c0392b;
 }
 
-/* Label thông báo lỗi / thành công */
+/* Tables */
+.custom-table {
+    -fx-background-color: white;
+    -fx-border-color: transparent;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);
+}
+
+.custom-table .column-header-background {
+    -fx-background-color: #f1f2f6;
+    -fx-background-radius: 8 8 0 0;
+}
+
+.custom-table .column-header {
+    -fx-background-color: transparent;
+    -fx-size: 40;
+}
+
+.custom-table .column-header .label {
+    -fx-text-fill: #2f3640;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+}
+
+.custom-table .table-row-cell {
+    -fx-background-color: white;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-border-color: #f1f2f6;
+    -fx-cell-size: 40;
+}
+
+.custom-table .table-row-cell:odd {
+    -fx-background-color: #fafbfb;
+}
+
+.custom-table .table-row-cell:hover {
+    -fx-background-color: #fcebeb;
+}
+
+.custom-table .table-row-cell:selected {
+    -fx-background-color: #fad3d3;
+    -fx-text-fill: #2c3e50;
+}
+
+/* Charts */
+.chart-plot-background {
+    -fx-background-color: #ffffff;
+}
+.chart-vertical-grid-lines {
+    -fx-stroke: transparent;
+}
+.chart-horizontal-grid-lines {
+    -fx-stroke: #f1f2f6;
+}
+
+.chart-series-line {
+    -fx-stroke: #e74c3c;
+    -fx-stroke-width: 3px;
+}
+.default-color0.chart-series-line {
+    -fx-stroke: #e74c3c;
+}
+.default-color0.chart-line-symbol {
+    -fx-background-color: #ffffff, #e74c3c;
+    -fx-background-insets: 0, 2;
+    -fx-background-radius: 5px;
+    -fx-padding: 5px;
+}
+
+/* Separators */
+.separator .line {
+    -fx-border-color: #dcdde1;
+}
+
+/* Status Notifications */
 .message-error {
-    -fx-text-fill: #d32f2f;
+    -fx-text-fill: #e74c3c;
     -fx-font-size: 13px;
     -fx-font-weight: bold;
 }
-
 .message-success {
-    -fx-text-fill: #2e7d32;
+    -fx-text-fill: #27ae60;
     -fx-font-size: 13px;
     -fx-font-weight: bold;
 }
