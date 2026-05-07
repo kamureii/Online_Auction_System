@@ -1,98 +1,188 @@
 package com.auction.server.dao;
+
 import com.auction.shared.model.Bid;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class BidDAO {
-    public double getHighestBid(int itemId, int startingPrice) throws SQLException {
-        String sql = "SELECT MAX(amount) AS highest_bid FROM bids WHERE item_id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, itemId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getDouble("highest_bid");
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return startingPrice;
-    }
 
-    public static String placeBid(Bid bid) throws SQLException {
-        String insertBidSql = "INSERT INTO bids (user_id, auction_id, bid_amount) VALUES (?, ?, ?)";
-        String checkSql = "SELECT current_price, min_increment FROM items WHERE id = ?";
-        String findAuctionSql = "SELECT id FROM auction_sessions WHERE item_id = ? ORDER BY id DESC LIMIT 1";
+    /**
+     * Đặt giá - có kiểm tra concurrent an toàn với SELECT ... FOR UPDATE.
+     * Cập nhật current_price trong items và current_highest_bid trong auction_sessions.
+     * @return "SUCCESS" nếu thành công, chuỗi lỗi nếu thất bại.
+     */
+    public static String placeBid(int auctionId, int userId, double bidAmount) {
+        String checkAuctionSql = "SELECT a.status, a.end_time, a.current_highest_bid, a.item_id, i.min_increment " +
+                "FROM auction_sessions a JOIN items i ON a.item_id = i.id WHERE a.id = ? FOR UPDATE";
+        String insertBidSql = "INSERT INTO bids (auction_id, user_id, bid_amount) VALUES (?, ?, ?)";
+        String updateAuctionSql = "UPDATE auction_sessions SET current_highest_bid = ? WHERE id = ?";
+        String updateItemSql = "UPDATE items SET current_price = ? WHERE id = ?";
+
         Connection conn = null;
         try {
             conn = DatabaseConnection.getConnection();
             conn.setAutoCommit(false);
-            double currentPrice = 0;
-            double minIncrement = 0;
 
-            try (PreparedStatement pstmt = conn.prepareStatement(checkSql)) {
-                pstmt.setInt(1, bid.getItemId());
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    if (rs.next()) {
-                        currentPrice = rs.getDouble("current_price");
-                        minIncrement = rs.getDouble("min_increment");
-                    }
+            // Kiểm tra phiên đấu giá (với lock để tránh concurrent issues)
+            String status;
+            Timestamp endTime;
+            double currentHighestBid;
+            double minIncrement;
+            int itemId;
+
+            try (PreparedStatement ps = conn.prepareStatement(checkAuctionSql)) {
+                ps.setInt(1, auctionId);
+                ResultSet rs = ps.executeQuery();
+                if (!rs.next()) {
+                    conn.rollback();
+                    return "Không tìm thấy phiên đấu giá!";
                 }
+                status = rs.getString("status");
+                endTime = rs.getTimestamp("end_time");
+                currentHighestBid = rs.getDouble("current_highest_bid");
+                minIncrement = rs.getDouble("min_increment");
+                itemId = rs.getInt("item_id");
             }
 
-            double minRequiredBid = currentPrice + minIncrement;
-            if (bid.getAmount() < minRequiredBid) {
+            String validation = validateBid(status, endTime, currentHighestBid, minIncrement, bidAmount,
+                    System.currentTimeMillis());
+            if (!"SUCCESS".equals(validation)) {
                 conn.rollback();
-                return "Giá trả không hợp lệ! Bạn phải trả ít nhất là " + minRequiredBid + " (Giá hiện tại + Bước giá " + minIncrement + ")";
+                return validation;
             }
 
-            // Look up the correct auction session ID for this item
-            int auctionId = -1;
-            try (PreparedStatement pstmt = conn.prepareStatement(findAuctionSql)) {
-                pstmt.setInt(1, bid.getItemId());
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    if (rs.next()) {
-                        auctionId = rs.getInt("id");
-                    }
-                }
-            }
-
-            if (auctionId == -1) {
+            // Kiểm tra trạng thái phiên
+            if (!"RUNNING".equals(status)) {
                 conn.rollback();
-                return "ERROR: No active auction session found for this item!";
+                return "Phiên đấu giá không ở trạng thái hoạt động! (Trạng thái: " + status + ")";
             }
 
-            try (PreparedStatement stmt1 = conn.prepareStatement(insertBidSql)) {
-                stmt1.setInt(1, bid.getUserId());
-                stmt1.setInt(2, auctionId);  // Use the actual auction session ID
-                stmt1.setDouble(3, bid.getAmount());
-                stmt1.executeUpdate();
+            // Kiểm tra giá đấu hợp lệ
+            if (endTime == null || endTime.getTime() <= System.currentTimeMillis()) {
+                conn.rollback();
+                return "Phien dau gia da het thoi gian!";
+            }
+
+            double minRequired = currentHighestBid + minIncrement;
+            if (bidAmount < minRequired) {
+                conn.rollback();
+                return String.format("Giá trả không hợp lệ! Bạn phải trả ít nhất %,.0f VNĐ (Giá hiện tại %,.0f + Bước giá %,.0f)",
+                        minRequired, currentHighestBid, minIncrement);
+            }
+
+            // Chèn bid mới
+            try (PreparedStatement ps = conn.prepareStatement(insertBidSql)) {
+                ps.setInt(1, auctionId);
+                ps.setInt(2, userId);
+                ps.setDouble(3, bidAmount);
+                ps.executeUpdate();
+            }
+
+            // Cập nhật giá cao nhất trong auction_sessions
+            try (PreparedStatement ps = conn.prepareStatement(updateAuctionSql)) {
+                ps.setDouble(1, bidAmount);
+                ps.setInt(2, auctionId);
+                ps.executeUpdate();
+            }
+
+            // Cập nhật current_price trong items
+            try (PreparedStatement ps = conn.prepareStatement(updateItemSql)) {
+                ps.setDouble(1, bidAmount);
+                ps.setInt(2, itemId);
+                ps.executeUpdate();
             }
 
             conn.commit();
-            return "Đặt giá thành công!";
+            return "SUCCESS";
+
         } catch (SQLException e) {
             if (conn != null) {
-                try {
-                    conn.rollback();
-                } catch (SQLException rollbackEx) {
-                    rollbackEx.printStackTrace();
-                }
+                try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
             }
-            e.printStackTrace();
-            return "ERROR: " + e.getMessage();
+            System.err.println("Lỗi đặt giá: " + e.getMessage());
+            return "Lỗi hệ thống: " + e.getMessage();
         } finally {
             if (conn != null) {
-                try {
-                    conn.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
+                try { conn.setAutoCommit(true); conn.close(); } catch (SQLException e) { e.printStackTrace(); }
             }
         }
+    }
+
+    /**
+     * Lấy lịch sử bid của một phiên đấu giá.
+     */
+    public static String validateBid(String status, Timestamp endTime, double currentHighestBid,
+                                     double minIncrement, double bidAmount, long nowMillis) {
+        if (!"RUNNING".equals(status)) {
+            return "Phien dau gia khong o trang thai hoat dong! (Trang thai: " + status + ")";
+        }
+        if (endTime == null || endTime.getTime() <= nowMillis) {
+            return "Phien dau gia da het thoi gian!";
+        }
+
+        double minRequired = currentHighestBid + minIncrement;
+        if (bidAmount < minRequired) {
+            return String.format("Gia tra khong hop le! Ban phai tra it nhat %,.0f VND", minRequired);
+        }
+        return "SUCCESS";
+    }
+
+    public static List<Bid> getBidHistory(int auctionId) {
+        List<Bid> bids = new ArrayList<>();
+        String sql = "SELECT b.*, u.username FROM bids b JOIN users u ON b.user_id = u.id " +
+                "WHERE b.auction_id = ? ORDER BY b.bid_time DESC";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, auctionId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                Bid bid = new Bid(
+                        rs.getInt("id"),
+                        rs.getInt("auction_id"),
+                        rs.getInt("user_id"),
+                        rs.getDouble("bid_amount"),
+                        rs.getTimestamp("bid_time")
+                );
+                bid.setBidderName(rs.getString("username"));
+                bids.add(bid);
+            }
+        } catch (SQLException e) {
+            System.err.println("Lỗi lấy lịch sử bid: " + e.getMessage());
+        }
+        return bids;
+    }
+
+    /**
+     * Lấy giá cao nhất hiện tại của một phiên đấu giá.
+     */
+    public static double getHighestBid(int auctionId) {
+        String sql = "SELECT current_highest_bid FROM auction_sessions WHERE id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, auctionId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getDouble("current_highest_bid");
+        } catch (SQLException e) {
+            System.err.println("Lỗi lấy giá cao nhất: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    /**
+     * Lấy userId của người đặt giá cao nhất.
+     */
+    public static int getHighestBidderId(int auctionId) {
+        String sql = "SELECT user_id FROM bids WHERE auction_id = ? ORDER BY bid_amount DESC LIMIT 1";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, auctionId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt("user_id");
+        } catch (SQLException e) {
+            System.err.println("Lỗi lấy người đặt giá cao nhất: " + e.getMessage());
+        }
+        return -1;
     }
 }
