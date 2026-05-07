@@ -1,72 +1,135 @@
 package com.auction.server.dao;
 
-import com.auction.server.dao.DatabaseConnection;
 import com.auction.shared.model.Item;
+import com.auction.shared.factory.ItemFactory;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ItemDAO {
-    public static List<Item> GetAllItems() {
+
+    public static List<Item> getAllItems() {
         List<Item> items = new ArrayList<>();
-        String sql = "SELECT * FROM items ORDER BY id DESC"; //take the newest items first
+        String sql = "SELECT * FROM items ORDER BY id DESC";
         try (Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery()) {
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                items.add(new Item(rs.getInt("id"), rs.getString("name"), rs.getString("description"), rs.getDouble("starting_price"), rs.getDouble("current_price"), rs.getInt("min_increment"), rs.getInt("seller_id"), rs.getTimestamp("end_time")));
+                items.add(mapResultSetToItem(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Lỗi lấy danh sách items: " + e.getMessage());
         }
         return items;
     }
 
-    public static boolean AddItem(Item item) {
-        String sql = "INSERT INTO items (name, description, starting_price, current_price, min_increment, seller_id, end_time) VALUES (?, ?, ?, ?, ?, ?, ?)";
+    public static Item getItemById(int id) {
+        String sql = "SELECT * FROM items WHERE id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return mapResultSetToItem(rs);
+        } catch (SQLException e) {
+            System.err.println("Lỗi lấy item: " + e.getMessage());
+        }
+        return null;
+    }
 
-            System.out.println("Attempting to add item to database: " + item.getName());
-            
-            if (conn == null || conn.isClosed()) {
-                System.err.println("Database connection is null or closed!");
-                return false;
+    public static List<Item> getItemsBySellerId(int sellerId) {
+        List<Item> items = new ArrayList<>();
+        String sql = "SELECT * FROM items WHERE seller_id = ? ORDER BY id DESC";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, sellerId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                items.add(mapResultSetToItem(rs));
             }
-            
+        } catch (SQLException e) {
+            System.err.println("Lỗi lấy items theo seller: " + e.getMessage());
+        }
+        return items;
+    }
+
+    public static int addItem(Item item) {
+        String sql = "INSERT INTO items (seller_id, name, description, category, starting_price, min_increment, current_price) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setInt(1, item.getSellerId());
+            ps.setString(2, item.getName());
+            ps.setString(3, item.getDescription());
+            ps.setString(4, item.getCategory());
+            ps.setDouble(5, item.getStartingPrice());
+            ps.setDouble(6, item.getMinIncrement());
+            ps.setDouble(7, item.getCurrentPrice());
+            ps.executeUpdate();
+
+            ResultSet keys = ps.getGeneratedKeys();
+            if (keys.next()) {
+                return keys.getInt(1);
+            }
+        } catch (SQLException e) {
+            System.err.println("Lỗi thêm item: " + e.getMessage());
+        }
+        return -1;
+    }
+
+    public static boolean updateItem(Item item) {
+        String sql = "UPDATE items SET name = ?, description = ?, category = ?, starting_price = ?, min_increment = ? WHERE id = ? AND seller_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, item.getName());
             ps.setString(2, item.getDescription());
-            ps.setDouble(3, item.getStartingPrice());
-            ps.setDouble(4, item.getCurrentPrice());
-            ps.setInt(5, item.getMinimumStep());
-            ps.setInt(6, item.getOwnerId());
-            ps.setTimestamp(7, item.getEndTime());
-            
-            System.out.println("Executing SQL: " + sql);
-            System.out.println("Parameters: name=" + item.getName() + ", desc=" + item.getDescription() + 
-                             ", startPrice=" + item.getStartingPrice() + ", currentPrice=" + item.getCurrentPrice() + 
-                             ", minStep=" + item.getMinimumStep() + ", ownerId=" + item.getOwnerId() + 
-                             ", endTime=" + item.getEndTime());
-            
-            int rowInserted = ps.executeUpdate();
-
-            System.out.println("Rows inserted: " + rowInserted);
-            return rowInserted > 0;
-            
+            ps.setString(3, item.getCategory());
+            ps.setDouble(4, item.getStartingPrice());
+            ps.setDouble(5, item.getMinIncrement());
+            ps.setInt(6, item.getId());
+            ps.setInt(7, item.getSellerId());
+            return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("SQL Error in AddItem: " + e.getMessage());
-            System.err.println("SQL State: " + e.getSQLState());
-            System.err.println("Error Code: " + e.getErrorCode());
-            e.printStackTrace();
-            return false;
-        } catch (Exception e) {
-            System.err.println("General Error in AddItem: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Lỗi cập nhật item: " + e.getMessage());
             return false;
         }
+    }
+
+    public static boolean deleteItem(int itemId, int sellerId) {
+        String sql = "DELETE FROM items WHERE id = ? AND seller_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, itemId);
+            ps.setInt(2, sellerId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Lỗi xóa item: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public static boolean updateCurrentPrice(int itemId, double newPrice) {
+        String sql = "UPDATE items SET current_price = ? WHERE id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDouble(1, newPrice);
+            ps.setInt(2, itemId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Lỗi cập nhật giá: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private static Item mapResultSetToItem(ResultSet rs) throws SQLException {
+        return ItemFactory.createItem(
+                rs.getString("category"),
+                rs.getInt("id"),
+                rs.getString("name"),
+                rs.getString("description"),
+                rs.getDouble("starting_price"),
+                rs.getDouble("current_price"),
+                rs.getDouble("min_increment"),
+                rs.getInt("seller_id")
+        );
     }
 }
