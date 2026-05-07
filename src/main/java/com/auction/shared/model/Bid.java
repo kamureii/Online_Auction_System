@@ -1,30 +1,50 @@
 package com.auction.shared.model;
+
 import java.sql.Timestamp;
 
-public class Bid {
-    private int id;
-    private int itemId;
+/**
+ * Giao dịch đặt giá (BidTransaction).
+ */
+public class Bid extends Entity {
+    private int auctionId;
     private int userId;
-    private double amount;
-    private Timestamp timestamp;
+    private double bidAmount;
+    private Timestamp bidTime;
+    private String bidderName; // Để hiển thị trên client
 
-    public Bid(int id, int itemId, int userId, double amount, Timestamp timestamp) {
-        this.id = id;
-        this.itemId = itemId;
+    public Bid() {}
+
+    public Bid(int auctionId, int userId, double bidAmount) {
+        this.auctionId = auctionId;
         this.userId = userId;
-        this.amount = amount;
-        this.timestamp = timestamp;
+        this.bidAmount = bidAmount;
     }
 
-    public Bid(int itemId, int userId, double amount) {
-        this.itemId = itemId;
+    public Bid(int id, int auctionId, int userId, double bidAmount, Timestamp bidTime) {
+        super(id);
+        this.auctionId = auctionId;
         this.userId = userId;
-        this.amount = amount;
+        this.bidAmount = bidAmount;
+        this.bidTime = bidTime;
     }
 
-    public int getId() { return id; }
-    public int getItemId() { return itemId; }
+    public int getAuctionId() { return auctionId; }
+    public void setAuctionId(int auctionId) { this.auctionId = auctionId; }
+
     public int getUserId() { return userId; }
-    public double getAmount() { return amount; }
-    public Timestamp getTimestamp() { return timestamp; }
+    public void setUserId(int userId) { this.userId = userId; }
+
+    public double getBidAmount() { return bidAmount; }
+    public void setBidAmount(double bidAmount) { this.bidAmount = bidAmount; }
+
+    public Timestamp getBidTime() { return bidTime; }
+    public void setBidTime(Timestamp bidTime) { this.bidTime = bidTime; }
+
+    public String getBidderName() { return bidderName; }
+    public void setBidderName(String bidderName) { this.bidderName = bidderName; }
+
+    @Override
+    public String getDisplayInfo() {
+        return String.format("Bid: %s trả %,.0f VNĐ", bidderName, bidAmount);
+    }
 }
