@@ -1,15 +1,12 @@
 package com.auction.client.controller;
 
+import com.auction.client.navigation.SceneNavigator;
 import com.auction.client.service.ServerConnector;
 import com.auction.shared.network.Response;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.paint.Color;
 import javafx.event.ActionEvent;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
 
 public class RegisterController {
     @FXML private TextField fullnameField;
@@ -17,24 +14,16 @@ public class RegisterController {
     @FXML private TextField usernameField;
     @FXML private PasswordField passwordField;
     @FXML private PasswordField confirmPasswordField;
-    @FXML private ComboBox<String> roleComboBox;
     @FXML private Label messageLabel;
 
     @FXML
-    public void initialize() {
-        roleComboBox.getItems().addAll("BIDDER", "SELLER");
-        roleComboBox.setValue("BIDDER");
+    private void goToLogin() {
+        SceneNavigator.showLogin();
     }
 
     @FXML
-    private void goToLogin() {
-        try {
-            Parent root = FXMLLoader.load(getClass().getResource("/views/Login.fxml"));
-            Stage stage = (Stage) usernameField.getScene().getWindow();
-            stage.setScene(new Scene(root));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    private void handleBackHome() {
+        SceneNavigator.showDashboard();
     }
 
     @FXML
@@ -44,7 +33,6 @@ public class RegisterController {
         String username = usernameField.getText().trim();
         String password = passwordField.getText();
         String confirmPassword = confirmPasswordField.getText();
-        String role = roleComboBox.getValue();
 
         // Validation
         if (fullname.isEmpty() || email.isEmpty() || username.isEmpty()
@@ -79,22 +67,14 @@ public class RegisterController {
             connector.connect();
         }
 
-        Response res = connector.register(username, email, password, fullname, role);
+        Response res = connector.register(username, email, password, fullname);
 
         if (res != null && "SUCCESS".equals(res.getStatus())) {
             messageLabel.setTextFill(Color.GREEN);
             messageLabel.setText("Đăng ký thành công! Đang chuyển về đăng nhập...");
 
             javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1));
-            pause.setOnFinished(e -> {
-                try {
-                    Parent root = FXMLLoader.load(getClass().getResource("/views/Login.fxml"));
-                    Stage stage = (Stage) usernameField.getScene().getWindow();
-                    stage.setScene(new Scene(root));
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-            });
+            pause.setOnFinished(e -> SceneNavigator.showLogin());
             pause.play();
         } else {
             showError(res != null ? res.getMessage() : "Đăng ký thất bại!");

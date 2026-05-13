@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane prefHeight="760.0" prefWidth="1120.0" styleClass="admin-root" stylesheets="@style.css"
+            xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.auction.client.controller.AdminController">
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="14" styleClass="admin-header">
+            <padding><Insets top="16" right="24" bottom="16" left="24" /></padding>
+            <VBox spacing="2">
+                <Label text="Bảng quản trị" styleClass="page-title" />
+                <Label text="Quản lý người dùng, phiên đấu giá và trạng thái thanh toán" styleClass="page-subtitle" />
+            </VBox>
+            <Region HBox.hgrow="ALWAYS" />
+            <Button text="Quay lại sàn" onAction="#handleExit" styleClass="ghost-button" />
+        </HBox>
+    </top>
+
+    <center>
+        <VBox spacing="16" styleClass="admin-content">
+            <padding><Insets top="18" right="24" bottom="24" left="24" /></padding>
+
+            <Label fx:id="statsLabel" text="Đang tải..." styleClass="admin-stats" />
+
+            <HBox spacing="12" alignment="CENTER_LEFT" styleClass="admin-message-row">
+                <Label fx:id="messageLabel" text="" styleClass="inline-message" HBox.hgrow="ALWAYS" />
+                <Button fx:id="confirmActionBtn" text="Xác nhận" onAction="#handleConfirmAction" styleClass="danger-button" managed="false" visible="false" />
+                <Button fx:id="cancelActionBtn" text="Hủy" onAction="#handleCancelAction" styleClass="ghost-button" managed="false" visible="false" />
+            </HBox>
+
+            <VBox spacing="10" VBox.vgrow="ALWAYS" styleClass="admin-panel">
+                <HBox alignment="CENTER_LEFT">
+                    <Label text="Người dùng" styleClass="section-title" />
+                    <Region HBox.hgrow="ALWAYS" />
+                    <Button text="Xóa người dùng" onAction="#handleDeleteUser" styleClass="danger-button" />
+                    <Button text="Làm mới" onAction="#refreshData" styleClass="secondary-button" />
+                </HBox>
+                <TableView fx:id="usersTable" VBox.vgrow="ALWAYS" styleClass="custom-table">
+                    <columns>
+                        <TableColumn fx:id="colUserId" text="ID" prefWidth="70" />
+                        <TableColumn fx:id="colUsername" text="Tên đăng nhập" prefWidth="220" />
+                        <TableColumn fx:id="colEmail" text="Email" prefWidth="300" />
+                        <TableColumn fx:id="colRole" text="Vai trò" prefWidth="140" />
+                    </columns>
+                </TableView>
+            </VBox>
+
+            <VBox spacing="10" VBox.vgrow="ALWAYS" styleClass="admin-panel">
+                <HBox alignment="CENTER_LEFT">
+                    <Label text="Phiên đấu giá" styleClass="section-title" />
+                    <Region HBox.hgrow="ALWAYS" />
+                    <Button text="Hủy phiên" onAction="#handleCancelAuction" styleClass="danger-button" />
+                    <Button text="Đánh dấu đã thanh toán" onAction="#handleMarkAuctionPaid" styleClass="primary-button" />
+                </HBox>
+                <TableView fx:id="auctionsTable" VBox.vgrow="ALWAYS" styleClass="custom-table">
+                    <columns>
+                        <TableColumn fx:id="colAuctionId" text="ID" prefWidth="70" />
+                        <TableColumn fx:id="colAuctionItem" text="Sản phẩm" prefWidth="360" />
+                        <TableColumn fx:id="colAuctionStatus" text="Trạng thái" prefWidth="160" />
+                        <TableColumn fx:id="colAuctionPrice" text="Giá cao nhất" prefWidth="220" />
+                    </columns>
+                </TableView>
+            </VBox>
+        </VBox>
+    </center>
+</BorderPane>
