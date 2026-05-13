@@ -1,50 +1,75 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.text.Font?>
 
-<VBox spacing="15" alignment="TOP_CENTER" prefHeight="650.0" prefWidth="950.0"
-      styleClass="root" stylesheets="@style.css"
-      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.auction.client.controller.DashboardController">
-
-    <padding>
-        <Insets top="20" right="30" bottom="20" left="30" />
-    </padding>
-
+<StackPane fx:id="rootStack" prefHeight="780.0" prefWidth="1240.0" stylesheets="@style.css"
+           xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="com.auction.client.controller.DashboardController">
     <children>
-        <!-- Header -->
-        <HBox alignment="CENTER" spacing="20" style="-fx-background-color: linear-gradient(#b21e15, #8e1911); -fx-background-radius: 10; -fx-padding: 15;">
-            <Label text="🔨 HỆ THỐNG ĐẤU GIÁ TRỰC TUYẾN" style="-fx-text-fill: white; -fx-font-weight: bold;">
-                <font><Font size="20.0" /></font>
-            </Label>
-        </HBox>
+        <BorderPane fx:id="dashboardPane" styleClass="market-root">
+            <top>
+                <VBox spacing="0" styleClass="market-header">
+                    <HBox alignment="CENTER_LEFT" spacing="16" styleClass="bidshift-topbar">
+                        <padding><Insets top="14" right="26" bottom="14" left="26" /></padding>
+                        <HBox alignment="CENTER_LEFT" spacing="10" onMouseClicked="#handleHome">
+                            <StackPane styleClass="brand-mark">
+                                <Label text="B" styleClass="brand-mark-text" />
+                            </StackPane>
+                            <VBox spacing="0">
+                                <Label text="BidShift" styleClass="market-brand" />
+                                <Label text="Đấu giá trực tuyến" styleClass="market-brand-subtitle" />
+                            </VBox>
+                        </HBox>
+                        <Region minWidth="10" />
+                        <MenuButton fx:id="assetMenuButton" text="Tài sản đấu giá" styleClass="nav-menu-button">
+                            <items>
+                                <MenuItem text="Tất cả tài sản" onAction="#handleShowAllAssets" />
+                                <MenuItem text="Điện tử" onAction="#handleCategoryElectronics" />
+                                <MenuItem text="Nghệ thuật" onAction="#handleCategoryArt" />
+                                <MenuItem text="Xe cộ" onAction="#handleCategoryVehicle" />
+                                <MenuItem text="Tài sản khác" onAction="#handleCategoryOther" />
+                            </items>
+                        </MenuButton>
+                        <MenuButton fx:id="sessionMenuButton" text="Phiên đấu giá" styleClass="nav-menu-button">
+                            <items>
+                                <MenuItem text="Sắp đấu giá" onAction="#handleUpcomingAuctions" />
+                                <MenuItem text="Đang diễn ra" onAction="#handleRunningAuctions" />
+                                <MenuItem text="Đã kết thúc" onAction="#handleEndedAuctions" />
+                            </items>
+                        </MenuButton>
+                        <Button text="Giới thiệu" onAction="#handleAbout" styleClass="nav-link-button" />
+                        <Button text="Liên hệ" onAction="#handleContact" styleClass="nav-link-button" />
+                        <Region HBox.hgrow="ALWAYS" />
+                        <Button fx:id="themeToggleBtn" text="◐" onAction="#handleThemeToggle" styleClass="round-icon-button" />
+                        <Button fx:id="searchToggleBtn" text="⌕" onAction="#handleToggleSearch" styleClass="round-icon-button" />
+                        <Button fx:id="notificationBtn" text="🔔" onAction="#handleNotifications" styleClass="round-icon-button" />
+                        <Button fx:id="addItemBtn" text="Đăng bán" onAction="#handleOpenAddForm" styleClass="primary-button" />
+                        <Button fx:id="adminBtn" text="Quản trị" onAction="#handleOpenAdmin" styleClass="ghost-button" />
+                        <Button fx:id="accountButton" text="Đăng nhập/Đăng ký" onAction="#handleAccountAction" styleClass="account-button" />
+                    </HBox>
+                    <HBox fx:id="searchBar" alignment="CENTER_LEFT" managed="false" visible="false" spacing="10" styleClass="search-dropbar">
+                        <padding><Insets top="0" right="26" bottom="14" left="26" /></padding>
+                        <TextField fx:id="searchField" promptText="Nhập từ khóa tìm kiếm tài sản..." HBox.hgrow="ALWAYS" styleClass="market-search" />
+                        <Button text="Tìm kiếm" onAction="#handleRefresh" styleClass="secondary-button" />
+                    </HBox>
+                </VBox>
+            </top>
+            <center>
+                <StackPane fx:id="contentHost" styleClass="content-host" />
+            </center>
+        </BorderPane>
 
-        <!-- User Info & Controls -->
-        <HBox alignment="CENTER_LEFT" spacing="15">
-            <Label fx:id="userInfoLabel" text="👤 Chưa đăng nhập" styleClass="input-label" />
-            <Region HBox.hgrow="ALWAYS" />
-            <Button text="🔄 Làm mới" onAction="#handleRefresh" styleClass="secondary-button" />
-            <Button fx:id="addItemBtn" text="➕ Đăng bán sản phẩm" onAction="#handleOpenAddForm" styleClass="login-button" />
-            <Button fx:id="adminBtn" text="⚙️ Quản trị" onAction="#handleOpenAdmin" styleClass="secondary-button" />
-            <Button text="🚪 Đăng xuất" onAction="#handleLogout" style="-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-background-radius: 5; -fx-cursor: hand;" />
-        </HBox>
+        <StackPane fx:id="notificationPopoverHost" managed="false" visible="false"
+                   styleClass="notification-popover-host" StackPane.alignment="TOP_RIGHT">
+            <StackPane.margin><Insets top="92" right="26" /></StackPane.margin>
+        </StackPane>
 
-        <Label text="📋 Danh sách phiên đấu giá (Double-click để vào phòng đấu giá)" styleClass="input-label" />
+        <StackPane fx:id="overlayHost" managed="false" visible="false" styleClass="overlay-host" />
 
-        <!-- Auction Table -->
-        <TableView fx:id="auctionTable" VBox.vgrow="ALWAYS" styleClass="custom-table">
-            <columns>
-                <TableColumn fx:id="colItemName" text="Sản Phẩm" prefWidth="300.0" />
-                <TableColumn fx:id="colCurrentBid" text="Giá Cao Nhất (VNĐ)" prefWidth="200.0" />
-                <TableColumn fx:id="colStatus" text="Trạng Thái" prefWidth="120.0" />
-                <TableColumn fx:id="colEndTime" text="Thời Gian Kết Thúc" prefWidth="200.0" />
-            </columns>
-            <placeholder>
-                <Label text="Chưa có phiên đấu giá nào" />
-            </placeholder>
-        </TableView>
+        <Label fx:id="toastLabel" managed="false" visible="false" text="" StackPane.alignment="BOTTOM_CENTER">
+            <StackPane.margin><Insets bottom="24" /></StackPane.margin>
+        </Label>
     </children>
-</VBox>
+</StackPane>
