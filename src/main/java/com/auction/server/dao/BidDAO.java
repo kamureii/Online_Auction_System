@@ -115,6 +115,12 @@ public class BidDAO {
      */
     public static String validateBid(String status, Timestamp endTime, double currentHighestBid,
                                      double minIncrement, double bidAmount, long nowMillis) {
+        if (!Double.isFinite(bidAmount) || bidAmount <= 0) {
+            return "Gia tra phai la so hop le lon hon 0!";
+        }
+        if (!Double.isFinite(currentHighestBid) || !Double.isFinite(minIncrement) || minIncrement <= 0) {
+            return "Cau hinh phien dau gia khong hop le!";
+        }
         if (!"RUNNING".equals(status)) {
             return "Phien dau gia khong o trang thai hoat dong! (Trang thai: " + status + ")";
         }
