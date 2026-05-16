@@ -13,7 +13,6 @@ public abstract class Item extends Entity {
     protected double currentPrice;
     protected double minIncrement;
     protected int sellerId;
-    protected String imagePath;
 
     public Item() {}
 
@@ -61,9 +60,6 @@ public abstract class Item extends Entity {
 
     public int getSellerId() { return sellerId; }
     public void setSellerId(int sellerId) { this.sellerId = sellerId; }
-
-    public String getImagePath() { return imagePath; }
-    public void setImagePath(String imagePath) { this.imagePath = imagePath; }
 
     @Override
     public String getDisplayInfo() {

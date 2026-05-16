@@ -54,7 +54,7 @@ public class ItemDAO {
     }
 
     public static int addItem(Item item) {
-        String sql = "INSERT INTO items (seller_id, name, description, category, starting_price, min_increment, current_price, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO items (seller_id, name, description, category, starting_price, min_increment, current_price) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, item.getSellerId());
@@ -64,7 +64,6 @@ public class ItemDAO {
             ps.setDouble(5, item.getStartingPrice());
             ps.setDouble(6, item.getMinIncrement());
             ps.setDouble(7, item.getCurrentPrice());
-            ps.setString(8, item.getImagePath());
             ps.executeUpdate();
 
             ResultSet keys = ps.getGeneratedKeys();
@@ -78,7 +77,7 @@ public class ItemDAO {
     }
 
     public static boolean updateItem(Item item) {
-        String sql = "UPDATE items SET name = ?, description = ?, category = ?, starting_price = ?, min_increment = ?, image_path = ? WHERE id = ? AND seller_id = ?";
+        String sql = "UPDATE items SET name = ?, description = ?, category = ?, starting_price = ?, min_increment = ? WHERE id = ? AND seller_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, item.getName());
@@ -86,9 +85,8 @@ public class ItemDAO {
             ps.setString(3, item.getCategory());
             ps.setDouble(4, item.getStartingPrice());
             ps.setDouble(5, item.getMinIncrement());
-            ps.setString(6, item.getImagePath());
-            ps.setInt(7, item.getId());
-            ps.setInt(8, item.getSellerId());
+            ps.setInt(6, item.getId());
+            ps.setInt(7, item.getSellerId());
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             System.err.println("Lỗi cập nhật item: " + e.getMessage());
@@ -123,7 +121,7 @@ public class ItemDAO {
     }
 
     private static Item mapResultSetToItem(ResultSet rs) throws SQLException {
-        Item item = ItemFactory.createItem(
+        return ItemFactory.createItem(
                 rs.getString("category"),
                 rs.getInt("id"),
                 rs.getString("name"),
@@ -133,11 +131,5 @@ public class ItemDAO {
                 rs.getDouble("min_increment"),
                 rs.getInt("seller_id")
         );
-        try {
-            item.setImagePath(rs.getString("image_path"));
-        } catch (SQLException ignored) {
-            item.setImagePath(null);
-        }
-        return item;
     }
 }
