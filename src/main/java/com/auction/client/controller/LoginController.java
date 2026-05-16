@@ -1,6 +1,5 @@
 package com.auction.client.controller;
 
-import com.auction.client.navigation.SceneNavigator;
 import com.auction.client.service.ServerConnector;
 import com.auction.shared.network.Response;
 
@@ -8,6 +7,10 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.paint.Color;
 import javafx.event.ActionEvent;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
 
 public class LoginController {
     @FXML private TextField usernameField;
@@ -16,12 +19,14 @@ public class LoginController {
 
     @FXML
     private void goToRegister() {
-        SceneNavigator.showRegister();
-    }
-
-    @FXML
-    private void handleBackHome() {
-        SceneNavigator.showDashboard();
+        try {
+            Parent root = FXMLLoader.load(getClass().getResource("/views/Register.fxml"));
+            Stage stage = (Stage) usernameField.getScene().getWindow();
+            stage.setScene(new Scene(root));
+            stage.show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
@@ -34,11 +39,11 @@ public class LoginController {
             return;
         }
 
-        // Đảm bảo kết nối tới máy chủ
+        // Đảm bảo kết nối tới server
         ServerConnector connector = ServerConnector.getInstance();
         if (!connector.isConnected()) {
             if (!connector.connect()) {
-                showError("Không thể kết nối tới máy chủ! Hãy kiểm tra máy chủ.");
+                showError("Không thể kết nối tới server! Hãy kiểm tra server.");
                 return;
             }
         }
@@ -50,13 +55,17 @@ public class LoginController {
             messageLabel.setText("Đăng nhập thành công!");
 
             try {
-                SceneNavigator.showDashboard();
+                Parent root = FXMLLoader.load(getClass().getResource("/views/Dashboard.fxml"));
+                Stage stage = (Stage) usernameField.getScene().getWindow();
+                stage.setScene(new Scene(root));
+                stage.setResizable(false);
+                stage.sizeToScene();
+                stage.show();
             } catch (Exception e) {
                 e.printStackTrace();
-                showError("Đăng nhập thành công nhưng không mở được trang chính.");
             }
         } else {
-            showError(res != null ? res.getMessage() : "Không thể kết nối tới máy chủ!");
+            showError(res != null ? res.getMessage() : "Không thể kết nối tới server!");
         }
     }
 

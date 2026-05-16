@@ -1,42 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
 
-<BorderPane prefHeight="560.0" prefWidth="680.0" styleClass="auth-root" stylesheets="@style.css"
-            xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+<AnchorPane prefHeight="550.0" prefWidth="500.0"
+            stylesheets="@style.css"
+            xmlns="http://javafx.com/javafx/17"
+            xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.auction.client.controller.LoginController">
-    <center>
-        <HBox alignment="CENTER" styleClass="auth-stage">
-            <padding><Insets top="34" right="44" bottom="34" left="44" /></padding>
-            <VBox alignment="CENTER_LEFT" spacing="18" styleClass="auth-panel">
-                <Button text="← Trang chủ" onAction="#handleBackHome" styleClass="auth-home-button" />
+    <children>
+        <VBox alignment="CENTER" spacing="20.0" styleClass="login-container"
+              AnchorPane.leftAnchor="50.0" AnchorPane.rightAnchor="50.0" AnchorPane.topAnchor="40.0">
 
-                <VBox spacing="4">
-                    <Label text="BidShift" styleClass="auth-brand" />
-                    <Label text="Đăng nhập để dịch chuyển cuộc đấu giá theo cách của bạn." styleClass="auth-subtitle" wrapText="true" />
-                </VBox>
-
-                <VBox spacing="7">
-                    <Label styleClass="input-label" text="Tên đăng nhập hoặc Email" />
-                    <TextField fx:id="usernameField" promptText="Nhập tên đăng nhập hoặc email" />
-                </VBox>
-
-                <VBox spacing="7">
-                    <Label styleClass="input-label" text="Mật khẩu" />
-                    <PasswordField fx:id="passwordField" promptText="Nhập mật khẩu" />
-                </VBox>
-
-                <Button maxWidth="Infinity" onAction="#handleLogin" styleClass="login-button" text="Đăng nhập" />
-
-                <HBox alignment="CENTER" spacing="6.0">
-                    <Label text="Bạn chưa có tài khoản?" styleClass="auth-note" />
-                    <Label onMouseClicked="#goToRegister" styleClass="link-text" text="Đăng ký ngay" />
+            <VBox alignment="CENTER" spacing="8.0">
+                <Label styleClass="brand-label" text="🔨 ĐĂNG NHẬP" />
+                <Label text="Hệ Thống Đấu Giá Trực Tuyến" style="-fx-font-size: 13px; -fx-text-fill: #666;" />
+                <HBox alignment="CENTER" spacing="5.0">
+                    <Label text="Bạn chưa có tài khoản?" style="-fx-font-size: 13px;"/>
+                    <Label onMouseClicked="#goToRegister" styleClass="link-text" text="Đăng Ký Ngay">
+                        <font><Font name="System Bold" size="13.0" /></font>
+                    </Label>
                 </HBox>
-
-                <Label fx:id="messageLabel" textAlignment="CENTER" wrapText="true" maxWidth="Infinity" alignment="CENTER" styleClass="form-message" />
             </VBox>
-        </HBox>
-    </center>
-</BorderPane>
+
+            <VBox spacing="5.0" alignment="CENTER_LEFT">
+                <Label styleClass="input-label" text="Tên đăng nhập hoặc Email" />
+                <TextField fx:id="usernameField" promptText="Nhập tên đăng nhập hoặc email" />
+            </VBox>
+
+            <VBox spacing="5.0" alignment="CENTER_LEFT">
+                <Label styleClass="input-label" text="Mật khẩu" />
+                <PasswordField fx:id="passwordField" promptText="Nhập mật khẩu" />
+            </VBox>
+
+            <Button maxWidth="Infinity" onAction="#handleLogin" styleClass="login-button" text="ĐĂNG NHẬP" />
+
+            <Label fx:id="messageLabel" textAlignment="CENTER" wrapText="true" maxWidth="Infinity" alignment="CENTER" />
+
+        </VBox>
+    </children>
+</AnchorPane>
