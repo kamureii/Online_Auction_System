@@ -7,11 +7,14 @@ import com.auction.shared.model.User;
 import com.auction.shared.network.Response;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 /**
  * Controller cho Admin Panel - quản lý users và phiên đấu giá.
@@ -42,6 +45,8 @@ public class AdminController {
     private final ServerConnector connector = ServerConnector.getInstance();
     private Runnable pendingAction;
 
+    private record AdminData(List<User> users, List<AuctionSession> auctions) {}
+
     @FXML
     public void initialize() {
         // Users table
@@ -70,7 +75,6 @@ public class AdminController {
                 setText(empty || status == null ? "" : displayStatus(status));
             }
         });
-
         colAuctionPrice.setCellFactory(col -> new TableCell<AuctionSession, Double>() {
             @Override
             protected void updateItem(Double val, boolean empty) {
@@ -89,6 +93,23 @@ public class AdminController {
     private void refreshData() {
         usersList.clear();
         auctionsList.clear();
+        showMessage("Đang tải dữ liệu quản trị...", true);
+
+        CompletableFuture
+                .supplyAsync(() -> new AdminData(connector.getAllUsers(), connector.getAdminAuctions()))
+                .thenAccept(data -> Platform.runLater(() -> {
+                    usersList.setAll(data.users() == null ? List.of() : data.users());
+                    auctionsList.setAll(data.auctions() == null ? List.of() : data.auctions());
+                    long activeCount = auctionsList.stream().filter(a -> "RUNNING".equals(a.getStatus())).count();
+                    statsLabel.setText(String.format("%d người dùng | %d phiên đấu giá | %d đang diễn ra",
+                            usersList.size(), auctionsList.size(), activeCount));
+                    showMessage("Đã cập nhật dữ liệu quản trị.", true);
+                }))
+                .exceptionally(error -> {
+                    Platform.runLater(() -> showMessage("Không tải được dữ liệu quản trị.", false));
+                    return null;
+                });
+        if (System.currentTimeMillis() >= 0) return;
 
         List<User> users = connector.getAllUsers();
         usersList.addAll(users);
@@ -114,6 +135,8 @@ public class AdminController {
         }
 
         setPendingAction("Xác nhận xóa người dùng '" + selected.getUsername() + "'?", () -> {
+            runAdminAction(() -> connector.deleteUser(selected.getId()), "Đã xóa người dùng.");
+            if (System.currentTimeMillis() >= 0) return;
             Response res = connector.deleteUser(selected.getId());
             if (res != null && "SUCCESS".equals(res.getStatus())) {
                 refreshData();
@@ -137,6 +160,8 @@ public class AdminController {
         }
 
         setPendingAction("Xác nhận hủy phiên đấu giá #" + selected.getId() + "?", () -> {
+            runAdminAction(() -> connector.cancelAuction(selected.getId()), "Đã hủy phiên đấu giá.");
+            if (System.currentTimeMillis() >= 0) return;
             Response res = connector.cancelAuction(selected.getId());
             if (res != null && "SUCCESS".equals(res.getStatus())) {
                 refreshData();
@@ -160,6 +185,8 @@ public class AdminController {
         }
 
         setPendingAction("Xác nhận đánh dấu đã thanh toán cho phiên #" + selected.getId() + "?", () -> {
+            runAdminAction(() -> connector.markAuctionPaid(selected.getId()), "Đã đánh dấu phiên là đã thanh toán.");
+            if (System.currentTimeMillis() >= 0) return;
             Response res = connector.markAuctionPaid(selected.getId());
             if (res != null && "SUCCESS".equals(res.getStatus())) {
                 refreshData();
@@ -188,6 +215,24 @@ public class AdminController {
     @FXML
     private void handleExit() {
         SceneNavigator.showDashboard();
+    }
+
+    private void runAdminAction(Supplier<Response> action, String successMessage) {
+        showMessage("Đang xử lý thao tác quản trị...", true);
+        CompletableFuture
+                .supplyAsync(action)
+                .thenAccept(res -> Platform.runLater(() -> {
+                    if (res != null && "SUCCESS".equals(res.getStatus())) {
+                        refreshData();
+                        showMessage(successMessage, true);
+                    } else {
+                        showMessage("Lỗi: " + (res != null ? res.getMessage() : "Máy chủ không phản hồi."), false);
+                    }
+                }))
+                .exceptionally(error -> {
+                    Platform.runLater(() -> showMessage("Không thực hiện được thao tác quản trị.", false));
+                    return null;
+                });
     }
 
     private void setPendingAction(String message, Runnable action) {
