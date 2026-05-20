@@ -1,0 +1,135 @@
+/* BidShift dashboard light skin */
+.dashboard-light-shell {
+    -auction-bg: #fffdf9;
+    -auction-bg-soft: #ffffff;
+    -auction-surface: #ffffff;
+    -auction-surface-raised: #ffffff;
+    -auction-text: #1a1a1a;
+    -auction-text-strong: #101010;
+    -auction-muted: #6f6f76;
+    -auction-muted-2: #94949b;
+    -auction-line: rgba(20, 20, 20, 0.08);
+    -auction-line-strong: rgba(20, 20, 20, 0.14);
+    -auction-red: #e50914;
+    -auction-red-hot: #f1111d;
+    -auction-red-dark: #b90e18;
+    -auction-red-soft: rgba(229, 9, 20, 0.075);
+    -home-page-start: #ffffff;
+    -home-page-mid: #fffdf9;
+    -home-page-end: #fff7f7;
+    -home-glass: rgba(255, 255, 255, 0.92);
+    -home-glass-strong: rgba(255, 255, 255, 0.97);
+    -home-card: #ffffff;
+    -home-card-soft: rgba(255, 255, 255, 0.96);
+    -home-card-inner: linear-gradient(to right, rgba(229, 9, 20, 0.035), #ffffff);
+    -home-border: rgba(20, 20, 20, 0.08);
+    -home-border-strong: rgba(20, 20, 20, 0.14);
+    -home-heading: #111111;
+    -home-text: #1a1a1a;
+    -home-muted: #6f6f76;
+    -home-muted-2: #7c7c84;
+    -home-shadow: rgba(20, 20, 20, 0.11);
+    -home-shadow-soft: rgba(20, 20, 20, 0.055);
+    -home-red-shadow: rgba(220, 20, 30, 0.30);
+    -home-red-shadow-strong: rgba(220, 20, 30, 0.40);
+    -home-hero-glow: rgba(229, 9, 20, 0.075);
+    -home-nav-icon-bg: #ffffff;
+    -home-nav-icon-border: #e9e9e9;
+    -home-secondary-bg: #ffffff;
+    -home-secondary-text: #171717;
+    -fx-font-family: "Aptos Display", "Aptos", "Segoe UI", "Bahnschrift", sans-serif;
+}
+
+.dashboard-light-shell .market-root,
+.dashboard-light-shell .content-host,
+.dashboard-light-shell .market-scroll,
+.dashboard-light-shell .market-scroll > .viewport {
+    -fx-background-color:
+        radial-gradient(center 80% 20%, radius 54%, rgba(229, 9, 20, 0.085), transparent 43%),
+        radial-gradient(center 24% 88%, radius 44%, rgba(250, 214, 214, 0.48), transparent 56%),
+        linear-gradient(to bottom, #ffffff 0%, #fffdf9 46%, #fff7f7 100%);
+}
+
+.dashboard-light-shell .market-header {
+    -fx-padding: 18 32 6 32;
+}
+
+.dashboard-light-shell .bidshift-topbar {
+    -fx-min-height: 78;
+    -fx-background-color: rgba(255, 255, 255, 0.90);
+    -fx-background-radius: 26;
+    -fx-border-color: rgba(20, 20, 20, 0.08);
+    -fx-border-radius: 26;
+    -fx-effect: dropshadow(gaussian, rgba(20, 20, 20, 0.11), 48, 0.18, 0, 16);
+}
+
+.dashboard-light-shell .nav-menu-button,
+.dashboard-light-shell .nav-link-button,
+.dashboard-light-shell .menu-button {
+    -fx-text-fill: #161616;
+    -fx-font-weight: 800;
+}
+
+.dashboard-light-shell .nav-menu-button .label,
+.dashboard-light-shell .nav-link-button .label,
+.dashboard-light-shell .menu-button .label {
+    -fx-text-fill: #161616;
+}
+
+.dashboard-light-shell .nav-menu-button:hover,
+.dashboard-light-shell .nav-link-button:hover,
+.dashboard-light-shell .menu-button:hover {
+    -fx-background-color: rgba(229, 9, 20, 0.075);
+    -fx-text-fill: #e50914;
+}
+
+.dashboard-light-shell .round-icon-button {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #ececec;
+    -fx-text-fill: #171717;
+    -fx-effect: dropshadow(gaussian, rgba(20, 20, 20, 0.07), 18, 0.14, 0, 6);
+}
+
+.dashboard-light-shell .account-button {
+    -fx-background-color: linear-gradient(to bottom right, #f1111d, #b90e18);
+    -fx-effect: dropshadow(gaussian, rgba(220, 20, 30, 0.32), 32, 0.20, 0, 12);
+}
+
+.dashboard-light-shell .home-content {
+    -fx-padding: 22 44 58 44;
+}
+
+.dashboard-light-shell .hero-full-image-frame {
+    -fx-background-radius: 18;
+    -fx-border-color: rgba(20, 20, 20, 0.07);
+    -fx-border-radius: 18;
+    -fx-effect: dropshadow(gaussian, rgba(20, 20, 20, 0.10), 34, 0.14, 0, 12);
+}
+
+.dashboard-light-shell .platform-stats-panel,
+.dashboard-light-shell .featured-auctions-panel {
+    -fx-background-color: rgba(255, 255, 255, 0.96);
+    -fx-border-color: rgba(20, 20, 20, 0.08);
+    -fx-effect: dropshadow(gaussian, rgba(20, 20, 20, 0.10), 34, 0.16, 0, 12);
+}
+
+.dashboard-light-shell .platform-metric-row {
+    -fx-background-color: linear-gradient(to right, rgba(229, 9, 20, 0.040), #ffffff);
+    -fx-border-color: rgba(229, 9, 20, 0.16);
+}
+
+.dashboard-light-shell .featured-auction-card {
+    -fx-background-color: #ffffff;
+    -fx-border-color: rgba(20, 20, 20, 0.08);
+}
+
+.dashboard-light-shell .featured-auction-card:hover {
+    -fx-border-color: rgba(229, 9, 20, 0.34);
+    -fx-effect: dropshadow(gaussian, rgba(220, 20, 30, 0.22), 22, 0.16, 0, 8);
+}
+
+.dashboard-light-shell .ai-chat-hint,
+.dashboard-light-shell .ai-chat-panel {
+    -fx-background-color: rgba(255, 255, 255, 0.97);
+    -fx-border-color: rgba(20, 20, 20, 0.08);
+}

@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import java.net.URL?>
 <?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.*?>
 <?import javafx.scene.layout.*?>
 
-<StackPane fx:id="rootStack" prefHeight="860.0" prefWidth="1440.0" stylesheets="@style.css" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.client.controller.DashboardController">
+<StackPane fx:id="rootStack" prefHeight="860.0" prefWidth="1440.0" styleClass="dashboard-light-shell" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.client.controller.DashboardController">
+    <stylesheets>
+        <URL value="@style.css" />
+        <URL value="@dashboard-light.css" />
+    </stylesheets>
     <children>
         <BorderPane fx:id="dashboardPane" styleClass="market-root">
             <top>

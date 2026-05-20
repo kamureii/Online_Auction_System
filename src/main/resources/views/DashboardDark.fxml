@@ -1,25 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import java.net.URL?>
 <?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.*?>
 <?import javafx.scene.layout.*?>
 
-<StackPane fx:id="rootStack" prefHeight="860.0" prefWidth="1440.0" stylesheets="@style.css" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.client.controller.DashboardController">
+<StackPane fx:id="rootStack" prefHeight="860.0" prefWidth="1440.0" styleClass="dashboard-dark-shell" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.client.controller.DashboardController">
+    <stylesheets>
+        <URL value="@style.css" />
+        <URL value="@dashboard-dark.css" />
+    </stylesheets>
     <children>
         <BorderPane fx:id="dashboardPane" styleClass="market-root">
             <top>
                 <VBox spacing="0" styleClass="market-header">
-                    <HBox alignment="CENTER_LEFT" spacing="22" styleClass="bidshift-topbar">
-                        <padding><Insets bottom="12" left="28" right="26" top="12" /></padding>
+                    <HBox alignment="CENTER_LEFT" spacing="20" styleClass="bidshift-topbar">
+                        <padding><Insets bottom="12" left="26" right="24" top="12" /></padding>
                         <HBox alignment="CENTER_LEFT" onMouseClicked="#handleHome" spacing="10" styleClass="brand-logo-shell">
                             <ImageView fx:id="brandLogoImage" fitHeight="54" fitWidth="218" pickOnBounds="true" preserveRatio="true" styleClass="brand-logo-image">
                                 <image>
-                                    <Image url="@../assets/bidshift-logo.png" />
+                                    <Image url="@../assets/bidshift-logo-dark.png" />
                                 </image>
                             </ImageView>
                         </HBox>
-                        <Region minWidth="12" />
+                        <Region minWidth="10" />
                         <MenuButton fx:id="assetMenuButton" styleClass="nav-menu-button" text="Tài sản đấu giá">
                             <items>
                                 <MenuItem onAction="#handleShowAllAssets" text="Tất cả tài sản" />
@@ -39,7 +44,7 @@
                         <Button onAction="#handleAbout" styleClass="nav-link-button" text="Giới thiệu" />
                         <Button onAction="#handleContact" styleClass="nav-link-button" text="Liên hệ" />
                         <Region HBox.hgrow="ALWAYS" />
-                        <Button fx:id="themeToggleBtn" onAction="#handleThemeToggle" styleClass="round-icon-button" text="☾" />
+                        <Button fx:id="themeToggleBtn" onAction="#handleThemeToggle" styleClass="round-icon-button" text="☀" />
                         <Button fx:id="searchToggleBtn" onAction="#handleToggleSearch" styleClass="round-icon-button" text="⌕" />
                         <Button fx:id="notificationBtn" onAction="#handleNotifications" styleClass="round-icon-button" text="🔔" />
                         <Button fx:id="addItemBtn" onAction="#handleOpenAddForm" styleClass="primary-button" text="Đăng bán" />
