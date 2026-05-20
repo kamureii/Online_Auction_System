@@ -9,11 +9,14 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -24,17 +27,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Widget chat AI hỗ trợ người dùng về quy trình đấu giá.
- * Hiển thị dưới dạng floating button + panel chat.
- */
 public class AiChatWidget {
+    private static final String AI_LOGO_RESOURCE = "/assets/bidshift-ai-chat-logo.png";
+
     private final ServerConnector connector = ServerConnector.getInstance();
     private final Gson gson = new Gson();
     private final List<ServerConnector.ChatMessage> history = new ArrayList<>();
 
     private StackPane host;
     private VBox panel;
+    private VBox hint;
     private VBox messagesBox;
     private ScrollPane messagesScroll;
     private TextArea input;
@@ -53,20 +55,43 @@ public class AiChatWidget {
         }
         this.host = host;
 
-        Button launcher = new Button("AI");
+        Button launcher = new Button();
+        launcher.setGraphic(createAiLogo(48));
+        launcher.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         launcher.getStyleClass().add("ai-chat-launcher");
         launcher.setTooltip(new Tooltip("Trợ lý AI"));
         StackPane.setAlignment(launcher, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(launcher, new Insets(0, 28, 28, 0));
+        StackPane.setMargin(launcher, new Insets(0, 34, 32, 0));
+
+        hint = createLauncherHint();
+        hint.setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        hint.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        StackPane.setAlignment(hint, Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(hint, new Insets(0, 110, 35, 0));
 
         panel = createPanel();
+        panel.setPrefSize(380, 520);
+        panel.setMinSize(340, 420);
+        panel.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
         panel.setVisible(false);
         panel.setManaged(false);
         StackPane.setAlignment(panel, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(panel, new Insets(0, 28, 104, 0));
+        StackPane.setMargin(panel, new Insets(0, 34, 112, 0));
 
         launcher.setOnAction(e -> togglePanel());
-        host.getChildren().addAll(panel, launcher);
+        host.getChildren().addAll(panel, hint, launcher);
+    }
+
+    private VBox createLauncherHint() {
+        Label title = new Label("Trợ lý AI");
+        title.getStyleClass().add("ai-chat-hint-title");
+        Label subtitle = new Label("Hỗ trợ 24/7");
+        subtitle.getStyleClass().add("ai-chat-hint-subtitle");
+        VBox box = new VBox(2, title, subtitle);
+        box.getStyleClass().add("ai-chat-hint");
+        box.setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        box.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        return box;
     }
 
     private VBox createPanel() {
@@ -95,12 +120,12 @@ public class AiChatWidget {
 
         VBox shell = new VBox(12, createHeader(), new Separator(), messagesScroll, composer);
         shell.getStyleClass().add("ai-chat-panel");
-        addBotMessage("Xin chào! Mình có thể hỗ trợ bạn về đăng nhập, tham gia đấu giá, trả giá, auto-bid và thanh toán.");
+        addBotMessage("Xin chào, mình có thể hỗ trợ bạn về đăng nhập, tham gia đấu giá, trả giá, auto-bid và thanh toán.");
         return shell;
     }
 
     private HBox createHeader() {
-        Label mark = new Label("AI");
+        StackPane mark = new StackPane(createAiLogo(34));
         mark.getStyleClass().add("ai-chat-mark");
         Label title = new Label("Trợ lý đấu giá");
         title.getStyleClass().add("ai-chat-title");
@@ -111,7 +136,7 @@ public class AiChatWidget {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Button close = new Button("×");
+        Button close = new Button("x");
         close.getStyleClass().add("ai-chat-close");
         close.setTooltip(new Tooltip("Đóng chat"));
         close.setOnAction(e -> hidePanel());
@@ -122,6 +147,23 @@ public class AiChatWidget {
         return header;
     }
 
+    private Node createAiLogo(double size) {
+        var logoUrl = AiChatWidget.class.getResource(AI_LOGO_RESOURCE);
+        if (logoUrl == null) {
+            Label fallback = new Label("AI");
+            fallback.getStyleClass().add("ai-chat-logo-fallback");
+            return fallback;
+        }
+        Image image = new Image(logoUrl.toExternalForm(), 1024, 1024, true, true);
+        ImageView view = new ImageView(image);
+        view.setFitWidth(size);
+        view.setFitHeight(size);
+        view.setPreserveRatio(true);
+        view.setSmooth(true);
+        view.getStyleClass().add("ai-chat-logo-image");
+        return view;
+    }
+
     private void togglePanel() {
         if (panel == null) {
             return;
@@ -129,6 +171,10 @@ public class AiChatWidget {
         boolean visible = !panel.isVisible();
         panel.setVisible(visible);
         panel.setManaged(visible);
+        if (hint != null) {
+            hint.setVisible(!visible);
+            hint.setManaged(!visible);
+        }
         if (visible) {
             input.requestFocus();
             scrollToBottom();
@@ -139,6 +185,10 @@ public class AiChatWidget {
         if (panel != null) {
             panel.setVisible(false);
             panel.setManaged(false);
+        }
+        if (hint != null) {
+            hint.setVisible(true);
+            hint.setManaged(true);
         }
     }
 
