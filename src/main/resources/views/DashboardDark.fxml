@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.net.URL?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.scene.layout.*?>
+
+<StackPane fx:id="rootStack" prefHeight="860.0" prefWidth="1440.0" styleClass="dashboard-dark-shell" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.client.controller.DashboardController">
+    <stylesheets>
+        <URL value="@style.css" />
+        <URL value="@dashboard-dark.css" />
+    </stylesheets>
+    <children>
+        <BorderPane fx:id="dashboardPane" styleClass="market-root">
+            <top>
+                <VBox spacing="0" styleClass="market-header">
+                    <HBox alignment="CENTER_LEFT" spacing="20" styleClass="bidshift-topbar">
+                        <padding><Insets bottom="12" left="26" right="24" top="12" /></padding>
+                        <HBox alignment="CENTER_LEFT" onMouseClicked="#handleHome" spacing="10" styleClass="brand-logo-shell">
+                            <ImageView fx:id="brandLogoImage" fitHeight="54" fitWidth="218" pickOnBounds="true" preserveRatio="true" styleClass="brand-logo-image">
+                                <image>
+                                    <Image url="@../assets/bidshift-logo-dark.png" />
+                                </image>
+                            </ImageView>
+                        </HBox>
+                        <Region minWidth="10" />
+                        <MenuButton fx:id="assetMenuButton" styleClass="nav-menu-button" text="Tài sản đấu giá">
+                            <items>
+                                <MenuItem onAction="#handleShowAllAssets" text="Tất cả tài sản" />
+                                <MenuItem onAction="#handleCategoryElectronics" text="Điện tử" />
+                                <MenuItem onAction="#handleCategoryArt" text="Nghệ thuật" />
+                                <MenuItem onAction="#handleCategoryVehicle" text="Xe cộ" />
+                                <MenuItem onAction="#handleCategoryOther" text="Tài sản khác" />
+                            </items>
+                        </MenuButton>
+                        <MenuButton fx:id="sessionMenuButton" styleClass="nav-menu-button" text="Phiên đấu giá">
+                            <items>
+                                <MenuItem onAction="#handleUpcomingAuctions" text="Sắp đấu giá" />
+                                <MenuItem onAction="#handleRunningAuctions" text="Đang diễn ra" />
+                                <MenuItem onAction="#handleEndedAuctions" text="Đã kết thúc" />
+                            </items>
+                        </MenuButton>
+                        <Button onAction="#handleAbout" styleClass="nav-link-button" text="Giới thiệu" />
+                        <Button onAction="#handleContact" styleClass="nav-link-button" text="Liên hệ" />
+                        <Region HBox.hgrow="ALWAYS" />
+                        <Button fx:id="themeToggleBtn" onAction="#handleThemeToggle" styleClass="round-icon-button" text="☀" />
+                        <Button fx:id="searchToggleBtn" onAction="#handleToggleSearch" styleClass="round-icon-button" text="⌕" />
+                        <Button fx:id="notificationBtn" onAction="#handleNotifications" styleClass="round-icon-button" text="🔔" />
+                        <Button fx:id="addItemBtn" onAction="#handleOpenAddForm" styleClass="primary-button" text="Đăng bán" />
+                        <Button fx:id="adminBtn" onAction="#handleOpenAdmin" styleClass="ghost-button" text="Quản trị" />
+                        <Button fx:id="accountButton" onAction="#handleAccountAction" styleClass="account-button" text="Đăng nhập / Đăng ký  →" />
+                    </HBox>
+                    <HBox fx:id="searchBar" alignment="CENTER_LEFT" managed="false" spacing="10" styleClass="search-dropbar" visible="false">
+                        <padding><Insets bottom="14" left="26" right="26" top="0" /></padding>
+                        <TextField fx:id="searchField" promptText="Nhập từ khóa tìm kiếm tài sản..." styleClass="market-search" HBox.hgrow="ALWAYS" />
+                        <Button onAction="#handleRefresh" styleClass="secondary-button" text="Tìm kiếm" />
+                    </HBox>
+                </VBox>
+            </top>
+            <center>
+                <StackPane fx:id="contentHost" styleClass="content-host" />
+            </center>
+        </BorderPane>
+
+        <StackPane fx:id="notificationPopoverHost" managed="false" styleClass="notification-popover-host" visible="false" StackPane.alignment="TOP_RIGHT">
+            <StackPane.margin><Insets right="26" top="92" /></StackPane.margin>
+        </StackPane>
+
+        <StackPane fx:id="overlayHost" managed="false" styleClass="overlay-host" visible="false" />
+
+        <Label fx:id="toastLabel" managed="false" text="" visible="false" StackPane.alignment="BOTTOM_CENTER">
+            <StackPane.margin><Insets bottom="24" /></StackPane.margin>
+        </Label>
+    </children>
+</StackPane>
