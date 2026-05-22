@@ -1,6 +1,7 @@
 package com.auction.server.rest;
 
 import com.auction.shared.network.Response;
+import com.auction.shared.config.AppConfig;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -22,9 +23,6 @@ public class ChatRestHandler implements HttpHandler {
     private static final String DEFAULT_MODEL = "gemini-2.5-flash";
     private static final int MAX_HISTORY_MESSAGES = 12;
     private static final int MAX_MESSAGE_CHARS = 2000;
-
-    /** API key mặc định — ưu tiên biến môi trường GEMINI_API_KEY nếu có. */
-    private static final String DEFAULT_API_KEY = "AIzaSyA3H5_youAGfr6Uf3-V9hMboTHKSfnDgv0";
 
     private static final String SYSTEM_PROMPT = """
             You are the customer support assistant for BidShift.
@@ -73,7 +71,7 @@ public class ChatRestHandler implements HttpHandler {
                 return;
             }
 
-            String model = System.getenv().getOrDefault("GEMINI_MODEL", DEFAULT_MODEL);
+            String model = AppConfig.get("gemini.model", "GEMINI_MODEL", DEFAULT_MODEL);
             JsonObject geminiRequest = buildGeminiRequest(messages);
             HttpRequest geminiHttpRequest = HttpRequest.newBuilder()
                     .uri(URI.create("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent"))
@@ -106,11 +104,11 @@ public class ChatRestHandler implements HttpHandler {
     }
 
     /**
-     * Ưu tiên biến môi trường, fallback sang key mặc định.
+     * Đọc API key từ system property, biến môi trường hoặc file cấu hình local.
+     * Không fallback sang key hard-code trong source.
      */
     private String resolveApiKey() {
-        String envKey = System.getenv("GEMINI_API_KEY");
-        return (envKey != null && !envKey.isBlank()) ? envKey : DEFAULT_API_KEY;
+        return AppConfig.get("gemini.api.key", "GEMINI_API_KEY", "");
     }
 
     private JsonObject buildGeminiRequest(JsonArray messages) {
