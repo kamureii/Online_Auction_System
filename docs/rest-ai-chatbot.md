@@ -17,9 +17,11 @@
 The Gemini API key must stay on the server. Do not put it in JavaFX source code.
 
 ```powershell
-$env:GEMINI_API_KEY="your-api-key"
+$env:GEMINI_API_KEY="AIzaSyA3H5_youAGfr6Uf3-V9hMboTHKSfnDgv0"
 $env:GEMINI_MODEL="gemini-2.5-flash"
 mvn exec:java -Dexec.mainClass="com.auction.server.ServerMain"
 ```
 
-If `GEMINI_API_KEY` is not configured, the chatbot shows a friendly server-side configuration error.
+You can also use `-Dgemini.api.key=...` and `-Dgemini.model=...`.
+The server also reads `.env`, `application.properties`, or `config/application.properties` from the project root.
+If no API key is configured, the chatbot shows a friendly server-side configuration error.
