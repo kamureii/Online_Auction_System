@@ -10,6 +10,10 @@ public class RegisterDTO {
     private String fullname;
     private String role; // BIDDER hoặc SELLER
 
+    public RegisterDTO(String username, String email, String password, String fullname) {
+        this(username, email, password, fullname, "BIDDER");
+    }
+
     public RegisterDTO(String username, String email, String password, String fullname, String role) {
         this.username = username;
         this.email = email;

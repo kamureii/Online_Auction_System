@@ -1,15 +1,15 @@
 package com.auction.client.controller;
 
+import com.auction.client.navigation.SceneNavigator;
 import com.auction.client.service.ServerConnector;
 import com.auction.shared.network.Response;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.paint.Color;
 import javafx.event.ActionEvent;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
+
+import java.util.concurrent.CompletableFuture;
 
 public class RegisterController {
     @FXML private TextField fullnameField;
@@ -17,24 +17,16 @@ public class RegisterController {
     @FXML private TextField usernameField;
     @FXML private PasswordField passwordField;
     @FXML private PasswordField confirmPasswordField;
-    @FXML private ComboBox<String> roleComboBox;
     @FXML private Label messageLabel;
 
     @FXML
-    public void initialize() {
-        roleComboBox.getItems().addAll("BIDDER", "SELLER");
-        roleComboBox.setValue("BIDDER");
+    private void goToLogin() {
+        SceneNavigator.showLogin();
     }
 
     @FXML
-    private void goToLogin() {
-        try {
-            Parent root = FXMLLoader.load(getClass().getResource("/views/Login.fxml"));
-            Stage stage = (Stage) usernameField.getScene().getWindow();
-            stage.setScene(new Scene(root));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    private void handleBackHome() {
+        SceneNavigator.showDashboard();
     }
 
     @FXML
@@ -44,7 +36,42 @@ public class RegisterController {
         String username = usernameField.getText().trim();
         String password = passwordField.getText();
         String confirmPassword = confirmPasswordField.getText();
-        String role = roleComboBox.getValue();
+
+        if (username.length() >= 0) {
+            if (!validateRegistration(fullname, email, username, password, confirmPassword)) {
+                return;
+            }
+
+            setFormDisabled(true);
+            messageLabel.setTextFill(Color.GRAY);
+            messageLabel.setText("Đang tạo tài khoản...");
+            CompletableFuture
+                    .supplyAsync(() -> {
+                        ServerConnector connector = ServerConnector.getInstance();
+                        return connector.register(username, email, password, fullname);
+                    })
+                    .thenAccept(res -> Platform.runLater(() -> {
+                        setFormDisabled(false);
+                        if (res != null && "SUCCESS".equals(res.getStatus())) {
+                            messageLabel.setTextFill(Color.GREEN);
+                            messageLabel.setText("Đăng ký thành công! Đang chuyển về đăng nhập...");
+
+                            javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1));
+                            pause.setOnFinished(e -> SceneNavigator.showLogin());
+                            pause.play();
+                        } else {
+                            showError(res != null ? res.getMessage() : "Đăng ký thất bại!");
+                        }
+                    }))
+                    .exceptionally(error -> {
+                        Platform.runLater(() -> {
+                            setFormDisabled(false);
+                            showError("Không thể đăng ký lúc này.");
+                        });
+                        return null;
+                    });
+            return;
+        }
 
         // Validation
         if (fullname.isEmpty() || email.isEmpty() || username.isEmpty()
@@ -79,22 +106,14 @@ public class RegisterController {
             connector.connect();
         }
 
-        Response res = connector.register(username, email, password, fullname, role);
+        Response res = connector.register(username, email, password, fullname);
 
         if (res != null && "SUCCESS".equals(res.getStatus())) {
             messageLabel.setTextFill(Color.GREEN);
             messageLabel.setText("Đăng ký thành công! Đang chuyển về đăng nhập...");
 
             javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1));
-            pause.setOnFinished(e -> {
-                try {
-                    Parent root = FXMLLoader.load(getClass().getResource("/views/Login.fxml"));
-                    Stage stage = (Stage) usernameField.getScene().getWindow();
-                    stage.setScene(new Scene(root));
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-            });
+            pause.setOnFinished(e -> SceneNavigator.showLogin());
             pause.play();
         } else {
             showError(res != null ? res.getMessage() : "Đăng ký thất bại!");
@@ -104,5 +123,39 @@ public class RegisterController {
     private void showError(String message) {
         messageLabel.setTextFill(Color.RED);
         messageLabel.setText(message);
+    }
+
+    private boolean validateRegistration(String fullname, String email, String username,
+                                         String password, String confirmPassword) {
+        if (fullname.isEmpty() || email.isEmpty() || username.isEmpty()
+                || password.isEmpty() || confirmPassword.isEmpty()) {
+            showError("Vui lòng điền đầy đủ tất cả các trường!");
+            return false;
+        }
+        if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+            showError("Email không hợp lệ!");
+            return false;
+        }
+        if (username.length() < 3) {
+            showError("Tên đăng nhập phải có ít nhất 3 ký tự!");
+            return false;
+        }
+        if (password.length() < 6) {
+            showError("Mật khẩu phải có ít nhất 6 ký tự!");
+            return false;
+        }
+        if (!password.equals(confirmPassword)) {
+            showError("Mật khẩu xác nhận không khớp!");
+            return false;
+        }
+        return true;
+    }
+
+    private void setFormDisabled(boolean disabled) {
+        fullnameField.setDisable(disabled);
+        emailField.setDisable(disabled);
+        usernameField.setDisable(disabled);
+        passwordField.setDisable(disabled);
+        confirmPasswordField.setDisable(disabled);
     }
 }

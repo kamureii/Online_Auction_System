@@ -1,5 +1,6 @@
 package com.auction.server.rest;
 
+import com.auction.shared.config.AppConfig;
 import com.sun.net.httpserver.HttpServer;
 
 import java.io.IOException;
@@ -45,8 +46,7 @@ public class RestApiServer {
     }
 
     private int resolvePort() {
-        String portStr = System.getProperty("auction.rest.port",
-                System.getenv().getOrDefault("AUCTION_REST_PORT", String.valueOf(DEFAULT_PORT)));
+        String portStr = AppConfig.get("auction.rest.port", "AUCTION_REST_PORT", String.valueOf(DEFAULT_PORT));
         try {
             int port = Integer.parseInt(portStr.trim());
             if (port < 1 || port > 65535) {
