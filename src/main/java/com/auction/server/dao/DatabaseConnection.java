@@ -19,7 +19,7 @@ import java.util.Properties;
 public class DatabaseConnection {
     private static final String DEFAULT_URL = "jdbc:mysql://localhost:3306/online_auction";
     private static final String DEFAULT_USER = "root";
-    private static final String DEFAULT_PASSWORD = "";
+    private static final String DEFAULT_PASSWORD = "Kamurei2911";
     private static final String DEFAULT_CONNECT_TIMEOUT_MS = "5000";
     private static final String DEFAULT_SOCKET_TIMEOUT_MS = "10000";
 
