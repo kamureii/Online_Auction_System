@@ -1,0 +1,38 @@
+/* Light skin for the dedicated BidShift auction room. */
+.auction-room-light {
+    -auction-bg: #f6f7fb;
+    -auction-bg-soft: #fffdf8;
+    -auction-surface: #ffffff;
+    -auction-surface-raised: #ffffff;
+    -auction-text: #111827;
+    -auction-text-strong: #0f172a;
+    -auction-muted: #6b7280;
+    -auction-muted-2: #94a3b8;
+    -auction-line: #e5e7eb;
+    -auction-red: #e50914;
+    -auction-red-hot: #ef233c;
+    -auction-red-dark: #b90e18;
+    -auction-red-soft: #fff1f2;
+    -auction-green: #16a34a;
+    -auction-green-soft: #ecfdf5;
+}
+
+.auction-room-light .auction-state-success {
+    -fx-text-fill: #16a34a;
+}
+
+.auction-room-light .auction-state-error {
+    -fx-text-fill: #e50914;
+}
+
+.auction-room-light .auction-state-warning {
+    -fx-text-fill: #b45309;
+}
+
+.auction-room-light .auction-state-info {
+    -fx-text-fill: #2563eb;
+}
+
+.auction-room-light .auction-state-muted {
+    -fx-text-fill: #6b7280;
+}
