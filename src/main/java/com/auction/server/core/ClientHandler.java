@@ -1,7 +1,11 @@
 package com.auction.server.core;
 
+import com.auction.server.auth.EmailVerificationService;
+import com.auction.server.auth.SessionRegistry;
 import com.auction.server.dao.*;
 import com.auction.shared.dto.LoginDTO;
+import com.auction.shared.dto.PaymentProfileDTO;
+import com.auction.shared.dto.ProfileDTO;
 import com.auction.shared.dto.RegisterDTO;
 import com.auction.shared.factory.ItemFactory;
 import com.auction.shared.factory.UserFactory;
@@ -11,10 +15,12 @@ import com.auction.shared.network.Response;
 import com.auction.shared.network.ServerMessage;
 import com.auction.shared.observer.AuctionEvent;
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.*;
 import java.net.Socket;
 import java.sql.Timestamp;
+import java.lang.reflect.Type;
 import java.util.List;
 
 /**
@@ -28,6 +34,7 @@ public class ClientHandler implements Runnable {
     private BufferedReader in;
     private final Gson gson = new Gson();
     private final UserDAO userDAO = new UserDAO();
+    private final EmailVerificationService emailVerificationService = new EmailVerificationService();
     protected User currentUser; // User đang đăng nhập trên connection này
 
     public ClientHandler(Socket socket) {
@@ -77,8 +84,26 @@ public class ClientHandler implements Runnable {
         if ("REGISTER".equals(action)) {
             return handleRegister(request.getPayload());
         }
+        if ("AUTH_SOCKET".equals(action)) {
+            return handleAuthSocket(request.getPayload());
+        }
+        if ("GET_ITEMS".equals(action)) {
+            return handleGetItems();
+        }
+        if ("GET_AUCTIONS".equals(action)) {
+            return handleGetAuctions();
+        }
+        if ("GET_PUBLIC_AUCTIONS".equals(action)) {
+            return handleGetPublicAuctions(request.getPayload());
+        }
+        if ("GET_AUCTION_DETAIL".equals(action)) {
+            return handleGetAuctionDetail(request.getPayload());
+        }
+        if ("GET_BID_HISTORY".equals(action)) {
+            return handleGetBidHistory(request.getPayload());
+        }
         if (currentUser == null) {
-            return new Response("ERROR", "Vui long dang nhap truoc khi thuc hien chuc nang nay!", null);
+            return new Response("ERROR", "Vui lòng đăng nhập trước khi thực hiện chức năng này!", null);
         }
 
         switch (action) {
@@ -89,32 +114,65 @@ public class ClientHandler implements Runnable {
             case "GET_ITEMS":
                 return handleGetItems();
             case "ADD_ITEM":
-                if (!hasRole("SELLER")) return forbidden("SELLER");
                 return handleAddItem(request.getPayload());
             case "UPDATE_ITEM":
-                if (!hasRole("SELLER")) return forbidden("SELLER");
                 return handleUpdateItem(request.getPayload());
             case "DELETE_ITEM":
-                if (!hasRole("SELLER")) return forbidden("SELLER");
                 return handleDeleteItem(request.getPayload());
             case "GET_AUCTIONS":
                 return handleGetAuctions();
+            case "GET_PUBLIC_AUCTIONS":
+                return handleGetPublicAuctions(request.getPayload());
+            case "GET_MY_AUCTIONS":
+                return handleGetMyAuctions();
+            case "GET_JOINED_AUCTIONS":
+                return handleGetJoinedAuctions();
+            case "GET_AUCTION_HISTORY":
+                return handleGetAuctionHistory();
             case "GET_AUCTION_DETAIL":
                 return handleGetAuctionDetail(request.getPayload());
+            case "JOIN_AUCTION":
+                return handleJoinAuction(request.getPayload());
+            case "RELIST_AUCTION":
+                return handleRelistAuction(request.getPayload());
             case "PLACE_BID":
-                if (!hasRole("BIDDER")) return forbidden("BIDDER");
                 return handlePlaceBid(request.getPayload());
             case "GET_BID_HISTORY":
                 return handleGetBidHistory(request.getPayload());
             case "SET_AUTO_BID":
-                if (!hasRole("BIDDER")) return forbidden("BIDDER");
                 return handleSetAutoBid(request.getPayload());
             case "CANCEL_AUTO_BID":
-                if (!hasRole("BIDDER")) return forbidden("BIDDER");
                 return handleCancelAutoBid(request.getPayload());
+            case "GET_PROFILE":
+                return handleGetProfile();
+            case "UPDATE_PROFILE":
+                return handleUpdateProfile(request.getPayload());
+            case "REQUEST_EMAIL_VERIFICATION":
+                return handleRequestEmailVerification();
+            case "CONFIRM_EMAIL_VERIFICATION":
+                return handleConfirmEmailVerification(request.getPayload());
+            case "GET_PAYMENT_PROFILE":
+                return handleGetPaymentProfile();
+            case "UPDATE_PAYMENT_PROFILE":
+                return handleUpdatePaymentProfile(request.getPayload());
+            case "GET_NOTIFICATIONS":
+                return handleGetNotifications();
+            case "MARK_NOTIFICATIONS_READ":
+                return handleMarkNotificationsRead();
+            case "GET_CART":
+                return handleGetCart();
+            case "CHECKOUT":
+                return handleCheckout(request.getPayload());
+            case "GET_SELLER_ORDERS":
+                return handleGetSellerOrders();
+            case "UPDATE_DELIVERY_STATUS":
+                return handleUpdateDeliveryStatus(request.getPayload());
             case "GET_ALL_USERS":
                 if (!hasRole("ADMIN")) return forbidden("ADMIN");
                 return handleGetAllUsers();
+            case "GET_ADMIN_AUCTIONS":
+                if (!hasRole("ADMIN")) return forbidden("ADMIN");
+                return handleGetAdminAuctions();
             case "DELETE_USER":
                 if (!hasRole("ADMIN")) return forbidden("ADMIN");
                 return handleDeleteUser(request.getPayload());
@@ -133,15 +191,40 @@ public class ClientHandler implements Runnable {
         return currentUser != null && role.equalsIgnoreCase(currentUser.getRole());
     }
 
+    private boolean hasVerifiedEmail() {
+        if (currentUser == null) {
+            return false;
+        }
+        if (currentUser.isEmailVerified()) {
+            return true;
+        }
+        User refreshed = userDAO.getUserById(currentUser.getId());
+        if (refreshed != null) {
+            currentUser = refreshed;
+        }
+        return currentUser != null && currentUser.isEmailVerified();
+    }
+
+    private Response requireVerifiedEmail(String featureName) {
+        return new Response("ERROR",
+                "Vui lòng xác thực email trước khi " + featureName + ".",
+                null);
+    }
+
     private Response forbidden(String requiredRole) {
-        return new Response("ERROR", "Khong co quyen thuc hien chuc nang nay. Can vai tro: " + requiredRole, null);
+        return new Response("ERROR", "Không có quyền thực hiện chức năng này. Cần vai trò: " + requiredRole, null);
     }
 
     // ========================= AUTH =========================
 
     private Response handleLogin(String payload) {
         LoginDTO loginData = gson.fromJson(payload, LoginDTO.class);
-        User loggedInUser = userDAO.loginUser(loginData.getLoginIdentifier(), loginData.getPassword());
+        User loggedInUser;
+        try {
+            loggedInUser = userDAO.loginUser(loginData.getLoginIdentifier(), loginData.getPassword());
+        } catch (IllegalStateException e) {
+            return new Response("ERROR", e.getMessage(), null);
+        }
 
         if (loggedInUser != null) {
             this.currentUser = loggedInUser;
@@ -149,6 +232,16 @@ public class ClientHandler implements Runnable {
             return new Response("SUCCESS", "Đăng nhập thành công!", userJson);
         }
         return new Response("ERROR", "Sai tài khoản hoặc mật khẩu!", null);
+    }
+
+    private Response handleAuthSocket(String payload) {
+        return SessionRegistry.getInstance()
+                .validate(payload == null ? "" : payload.trim())
+                .map(user -> {
+                    this.currentUser = user;
+                    return new Response("SUCCESS", "Socket đã xác thực.", gson.toJson(user));
+                })
+                .orElseGet(() -> new Response("ERROR", "Session không hợp lệ hoặc đã hết hạn.", null));
     }
 
     private Response handleRegister(String payload) {
@@ -169,7 +262,7 @@ public class ClientHandler implements Runnable {
         }
 
         String requestedRole = registerData.getRole();
-        String safeRole = "SELLER".equalsIgnoreCase(requestedRole) ? "SELLER" : "BIDDER";
+        String safeRole = "ADMIN".equalsIgnoreCase(requestedRole) ? "ADMIN" : "USER";
 
         User newUser = UserFactory.createNewUser(
                 safeRole,
@@ -194,6 +287,9 @@ public class ClientHandler implements Runnable {
     }
 
     private Response handleAddItem(String payload) {
+        if (!hasVerifiedEmail()) {
+            return requireVerifiedEmail("đăng bán sản phẩm");
+        }
         try {
             com.google.gson.JsonObject obj = gson.fromJson(payload, com.google.gson.JsonObject.class);
             String name = obj.get("name").getAsString();
@@ -203,8 +299,12 @@ public class ClientHandler implements Runnable {
             double minIncrement = obj.get("minIncrement").getAsDouble();
             int sellerId = currentUser.getId();
             int auctionDays = obj.has("auctionDays") ? obj.get("auctionDays").getAsInt() : 1;
+            String imagePath = obj.has("imagePath") && !obj.get("imagePath").isJsonNull()
+                    ? obj.get("imagePath").getAsString()
+                    : "";
 
             Item newItem = ItemFactory.createNewItem(category, name, description, startingPrice, minIncrement, sellerId);
+            newItem.setImagePath(imagePath);
             int itemId = ItemDAO.addItem(newItem);
 
             if (itemId > 0) {
@@ -217,6 +317,7 @@ public class ClientHandler implements Runnable {
                 int auctionId = AuctionSessionDAO.createAuction(session);
 
                 if (auctionId > 0) {
+                    AuctionParticipantDAO.ensureSellerParticipant(auctionId, currentUser.getId());
                     System.out.println("✅ Tạo sản phẩm #" + itemId + " và phiên đấu giá #" + auctionId);
 
                     // Broadcast cập nhật
@@ -283,6 +384,84 @@ public class ClientHandler implements Runnable {
         return new Response("SUCCESS", "Lấy danh sách phiên đấu giá thành công!", gson.toJson(auctions));
     }
 
+    private Response handleGetPublicAuctions(String payload) {
+        try {
+            com.google.gson.JsonObject obj = payload == null || payload.isBlank()
+                    ? new com.google.gson.JsonObject()
+                    : gson.fromJson(payload, com.google.gson.JsonObject.class);
+            String category = obj != null && obj.has("category") ? obj.get("category").getAsString() : "ALL";
+            String status = obj != null && obj.has("status") ? obj.get("status").getAsString() : "ALL";
+            List<AuctionSession> auctions = AuctionSessionDAO.getPublicAuctions(category, status);
+            return new Response("SUCCESS", "Lấy danh sách đấu giá public!", gson.toJson(auctions));
+        } catch (Exception e) {
+            return new Response("ERROR", "Lỗi lấy danh sách đấu giá: " + e.getMessage(), null);
+        }
+    }
+
+    private Response handleGetMyAuctions() {
+        List<AuctionSession> auctions = AuctionSessionDAO.getAuctionsBySeller(currentUser.getId());
+        return new Response("SUCCESS", "Lấy danh sách đấu giá của bạn!", gson.toJson(auctions));
+    }
+
+    private Response handleGetJoinedAuctions() {
+        List<AuctionSession> auctions = AuctionSessionDAO.getJoinedAuctions(currentUser.getId());
+        return new Response("SUCCESS", "Lấy danh sách đấu giá đã tham gia!", gson.toJson(auctions));
+    }
+
+    private Response handleGetAuctionHistory() {
+        List<AuctionSession> auctions = AuctionSessionDAO.getAuctionHistoryForUser(currentUser.getId());
+        return new Response("SUCCESS", "Lấy lịch sử đấu giá!", gson.toJson(auctions));
+    }
+
+    private Response handleJoinAuction(String payload) {
+        try {
+            int auctionId = Integer.parseInt(payload.trim());
+            AuctionSession session = AuctionSessionDAO.getAuctionById(auctionId);
+            if (session == null) {
+                return new Response("ERROR", "Không tìm thấy phiên đấu giá!", null);
+            }
+            boolean success = currentUser.getId() == session.getSellerId()
+                    ? AuctionParticipantDAO.ensureSellerParticipant(auctionId, currentUser.getId())
+                    : AuctionParticipantDAO.ensureBidderParticipant(auctionId, currentUser.getId());
+            return success
+                    ? new Response("SUCCESS", "Đã tham gia phòng đấu giá!", null)
+                    : new Response("ERROR", "Không thể tham gia phòng đấu giá!", null);
+        } catch (Exception e) {
+            return new Response("ERROR", "Lỗi tham gia đấu giá: " + e.getMessage(), null);
+        }
+    }
+
+    private Response handleRelistAuction(String payload) {
+        try {
+            com.google.gson.JsonObject obj = gson.fromJson(payload, com.google.gson.JsonObject.class);
+            int oldAuctionId = obj.get("auctionId").getAsInt();
+            AuctionSession old = AuctionSessionDAO.getAuctionById(oldAuctionId);
+            if (old == null) {
+                return new Response("ERROR", "Không tìm thấy phiên đấu giá!", null);
+            }
+            if (old.getSellerId() != currentUser.getId() && !hasRole("ADMIN")) {
+                return new Response("ERROR", "Bạn không có quyền đăng lại phiên này.", null);
+            }
+            String name = obj.has("name") && !obj.get("name").isJsonNull() ? obj.get("name").getAsString() : old.getItemName();
+            String description = obj.has("description") && !obj.get("description").isJsonNull()
+                    ? obj.get("description").getAsString()
+                    : old.getItemDescription();
+            String imagePath = obj.has("imagePath") && !obj.get("imagePath").isJsonNull()
+                    ? obj.get("imagePath").getAsString()
+                    : old.getItemImagePath();
+            int newAuctionId = AuctionSessionDAO.relistAuction(oldAuctionId, name, description, imagePath);
+            if (newAuctionId > 0) {
+                AuctionParticipantDAO.ensureSellerParticipant(newAuctionId, old.getSellerId());
+                AuctionEvent event = new AuctionEvent(AuctionEvent.ITEM_LIST_UPDATED, newAuctionId);
+                ClientManager.getInstance().broadcastEvent(event);
+                return new Response("SUCCESS", "Đăng lại phiên đấu giá thành công!", String.valueOf(newAuctionId));
+            }
+            return new Response("ERROR", "Không thể đăng lại phiên đấu giá!", null);
+        } catch (Exception e) {
+            return new Response("ERROR", "Lỗi đăng lại đấu giá: " + e.getMessage(), null);
+        }
+    }
+
     private Response handleGetAuctionDetail(String payload) {
         try {
             int auctionId = Integer.parseInt(payload.trim());
@@ -304,15 +483,30 @@ public class ClientHandler implements Runnable {
     // ========================= BIDDING =========================
 
     private Response handlePlaceBid(String payload) {
+        if (!hasVerifiedEmail()) {
+            return requireVerifiedEmail("tham gia đấu giá");
+        }
         try {
             com.google.gson.JsonObject obj = gson.fromJson(payload, com.google.gson.JsonObject.class);
             int auctionId = obj.get("auctionId").getAsInt();
             int userId = currentUser.getId();
             double bidAmount = obj.get("bidAmount").getAsDouble();
 
+            AuctionSession targetSession = AuctionSessionDAO.getAuctionById(auctionId);
+            if (targetSession == null) {
+                return new Response("ERROR", "Không tìm thấy phiên đấu giá!", null);
+            }
+            if (targetSession.getSellerId() == userId) {
+                return new Response("ERROR", "Bạn không thể đấu giá sản phẩm của chính mình.", null);
+            }
+            if (userDAO.isBidderBanned(userId)) {
+                return new Response("ERROR", "Tài khoản đang bị khóa đấu giá do quá hạn thanh toán.", null);
+            }
+
             String result = BidDAO.placeBid(auctionId, userId, bidAmount);
 
             if ("SUCCESS".equals(result)) {
+                AuctionParticipantDAO.ensureBidderParticipant(auctionId, userId);
                 String bidderName = userDAO.getUsernameById(userId);
 
                 // Anti-sniping: kiểm tra bid trong 30 giây cuối
@@ -362,12 +556,26 @@ public class ClientHandler implements Runnable {
     // ========================= AUTO-BID =========================
 
     private Response handleSetAutoBid(String payload) {
+        if (!hasVerifiedEmail()) {
+            return requireVerifiedEmail("đặt auto-bid");
+        }
         try {
             com.google.gson.JsonObject obj = gson.fromJson(payload, com.google.gson.JsonObject.class);
             int auctionId = obj.get("auctionId").getAsInt();
             int userId = currentUser.getId();
             double maxBid = obj.get("maxBid").getAsDouble();
             double bidIncrement = obj.get("bidIncrement").getAsDouble();
+
+            AuctionSession targetSession = AuctionSessionDAO.getAuctionById(auctionId);
+            if (targetSession == null) {
+                return new Response("ERROR", "Không tìm thấy phiên đấu giá!", null);
+            }
+            if (targetSession.getSellerId() == userId) {
+                return new Response("ERROR", "Bạn không thể đặt auto-bid cho sản phẩm của chính mình.", null);
+            }
+            if (userDAO.isBidderBanned(userId)) {
+                return new Response("ERROR", "Tài khoản đang bị khóa đấu giá do quá hạn thanh toán.", null);
+            }
 
             // Vô hiệu auto-bid cũ và tạo mới
             AutoBidDAO.deactivateUserAutoBids(auctionId, userId);
@@ -400,6 +608,179 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    // ========================= ACCOUNT =========================
+
+    private Response handleGetProfile() {
+        ProfileDTO profile = userDAO.getProfile(currentUser.getId());
+        return profile != null
+                ? new Response("SUCCESS", "Lấy hồ sơ thành công!", gson.toJson(profile))
+                : new Response("ERROR", "Không tìm thấy hồ sơ!", null);
+    }
+
+    private Response handleUpdateProfile(String payload) {
+        try {
+            ProfileDTO profile = gson.fromJson(payload, ProfileDTO.class);
+            boolean success = userDAO.updateProfile(currentUser.getId(), profile);
+            if (success) {
+                User refreshed = userDAO.getUserById(currentUser.getId());
+                if (refreshed != null) {
+                    currentUser = refreshed;
+                }
+                return new Response("SUCCESS", "Cập nhật hồ sơ thành công!", null);
+            }
+            return new Response("ERROR", "Không thể cập nhật hồ sơ!", null);
+        } catch (Exception e) {
+            return new Response("ERROR", "Lỗi cập nhật hồ sơ: " + e.getMessage(), null);
+        }
+    }
+
+    private Response handleRequestEmailVerification() {
+        return emailVerificationService.requestEmailVerification(currentUser.getId());
+    }
+
+    private Response handleConfirmEmailVerification(String payload) {
+        try {
+            com.google.gson.JsonObject obj = gson.fromJson(payload, com.google.gson.JsonObject.class);
+            String code = obj != null && obj.has("code") && !obj.get("code").isJsonNull()
+                    ? obj.get("code").getAsString()
+                    : "";
+            Response response = emailVerificationService.confirmEmailVerification(currentUser.getId(), code);
+            if ("SUCCESS".equals(response.getStatus())) {
+                User refreshed = userDAO.getUserById(currentUser.getId());
+                if (refreshed != null) {
+                    currentUser = refreshed;
+                }
+            }
+            return response;
+        } catch (Exception e) {
+            return new Response("ERROR", "Yêu cầu xác thực email không hợp lệ.", null);
+        }
+    }
+
+    private Response handleGetPaymentProfile() {
+        PaymentProfileDTO profile = userDAO.getPaymentProfile(currentUser.getId());
+        return new Response("SUCCESS", "Lấy thông tin thanh toán thành công!", gson.toJson(profile));
+    }
+
+    private Response handleUpdatePaymentProfile(String payload) {
+        try {
+            PaymentProfileDTO profile = gson.fromJson(payload, PaymentProfileDTO.class);
+            boolean success = userDAO.updatePaymentProfile(currentUser.getId(), profile);
+            return success
+                    ? new Response("SUCCESS", "Cập nhật thanh toán thành công!", null)
+                    : new Response("ERROR", "Không thể cập nhật thanh toán!", null);
+        } catch (Exception e) {
+            return new Response("ERROR", "Lỗi cập nhật thanh toán: " + e.getMessage(), null);
+        }
+    }
+
+    private Response handleGetNotifications() {
+        List<Notification> notifications = NotificationDAO.getByUser(currentUser.getId());
+        return new Response("SUCCESS", "Lấy thông báo thành công!", gson.toJson(notifications));
+    }
+
+    private Response handleMarkNotificationsRead() {
+        boolean success = NotificationDAO.markAllRead(currentUser.getId());
+        return success
+                ? new Response("SUCCESS", "Đã đánh dấu thông báo đã đọc!", null)
+                : new Response("ERROR", "Không thể đánh dấu thông báo!", null);
+    }
+
+    private Response handleGetCart() {
+        List<CartItem> items = CartDAO.getCartItems(currentUser.getId());
+        return new Response("SUCCESS", "Lấy giỏ hàng thành công!", gson.toJson(items));
+    }
+
+    private Response handleCheckout(String payload) {
+        if (!hasVerifiedEmail()) {
+            return requireVerifiedEmail("thanh toán");
+        }
+        try {
+            com.google.gson.JsonObject obj = gson.fromJson(payload, com.google.gson.JsonObject.class);
+            Type listType = new TypeToken<List<Integer>>() {}.getType();
+            List<Integer> cartItemIds = gson.fromJson(obj.get("cartItemIds"), listType);
+            String paymentMethod = obj.has("paymentMethod") ? obj.get("paymentMethod").getAsString() : "";
+            String address = obj.has("address") ? obj.get("address").getAsString() : "";
+            String validationError = CartDAO.validateCheckoutInput(cartItemIds, paymentMethod, address);
+            if (validationError != null) {
+                return new Response("ERROR", validationError, null);
+            }
+            boolean success = CartDAO.checkout(currentUser.getId(), cartItemIds, paymentMethod, address);
+            if (success) {
+                userDAO.applyPaidReward(currentUser.getId());
+                notifySellersAfterCheckout(CartDAO.getCartItemsByIds(currentUser.getId(), cartItemIds));
+                User refreshed = userDAO.getUserById(currentUser.getId());
+                if (refreshed != null) {
+                    currentUser = refreshed;
+                }
+                AuctionEvent event = new AuctionEvent(AuctionEvent.ITEM_LIST_UPDATED, 0);
+                ClientManager.getInstance().broadcastEvent(event);
+                return new Response("SUCCESS", "Thanh toán thành công!", null);
+            }
+            return new Response("ERROR", "Không thể thanh toán các mặt hàng đã chọn!", null);
+        } catch (Exception e) {
+            return new Response("ERROR", "Lỗi thanh toán: " + e.getMessage(), null);
+        }
+    }
+
+    private Response handleGetSellerOrders() {
+        List<CartItem> items = CartDAO.getSellerOrders(currentUser.getId());
+        return new Response("SUCCESS", "Lấy đơn bán thành công!", gson.toJson(items));
+    }
+
+    private Response handleUpdateDeliveryStatus(String payload) {
+        try {
+            com.google.gson.JsonObject obj = gson.fromJson(payload, com.google.gson.JsonObject.class);
+            int cartItemId = obj.get("cartItemId").getAsInt();
+            String deliveryStatus = obj.has("deliveryStatus") ? obj.get("deliveryStatus").getAsString() : "";
+            String trackingCode = obj.has("trackingCode") && !obj.get("trackingCode").isJsonNull()
+                    ? obj.get("trackingCode").getAsString()
+                    : "";
+            boolean success = CartDAO.updateDeliveryStatus(currentUser.getId(), cartItemId, deliveryStatus, trackingCode);
+            if (success) {
+                CartItem item = CartDAO.getCartItemById(cartItemId);
+                notifyBuyerAfterDeliveryUpdate(item);
+                AuctionEvent event = new AuctionEvent(AuctionEvent.ITEM_LIST_UPDATED, 0);
+                ClientManager.getInstance().broadcastEvent(event);
+                return new Response("SUCCESS", "Cập nhật giao hàng thành công!", null);
+            }
+            return new Response("ERROR", "Không thể cập nhật giao hàng cho đơn này.", null);
+        } catch (Exception e) {
+            return new Response("ERROR", "Lỗi cập nhật giao hàng: " + e.getMessage(), null);
+        }
+    }
+
+    private void notifySellersAfterCheckout(List<CartItem> items) {
+        for (CartItem item : items) {
+            if (item.getSellerId() <= 0) {
+                continue;
+            }
+            Notification notice = new Notification(item.getSellerId(), "Đơn hàng sẵn sàng giao",
+                    item.getItemName() + " đã được checkout. Vui lòng chuẩn bị giao hàng cho người mua.", "SELLER_ORDER");
+            notice.setReferenceId(item.getId());
+            NotificationDAO.create(notice);
+        }
+    }
+
+    private void notifyBuyerAfterDeliveryUpdate(CartItem item) {
+        if (item == null || item.getBidderId() <= 0) {
+            return;
+        }
+        String deliveryStatus = item.getDeliveryStatus();
+        String message = "Đơn hàng " + item.getItemName() + " đang được cập nhật trạng thái giao hàng.";
+        if (CartDAO.DELIVERY_SHIPPING.equals(deliveryStatus)) {
+            message = "Đơn hàng " + item.getItemName() + " đang được giao.";
+            if (item.getTrackingCode() != null && !item.getTrackingCode().isBlank()) {
+                message += " Mã vận đơn: " + item.getTrackingCode() + ".";
+            }
+        } else if (CartDAO.DELIVERY_DELIVERED.equals(deliveryStatus)) {
+            message = "Đơn hàng " + item.getItemName() + " đã được đánh dấu là đã giao.";
+        }
+        Notification notice = new Notification(item.getBidderId(), "Giao hàng đã cập nhật", message, "DELIVERY");
+        notice.setReferenceId(item.getId());
+        NotificationDAO.create(notice);
+    }
+
     // ========================= ADMIN =========================
 
     private Response handleGetAllUsers() {
@@ -407,12 +788,17 @@ public class ClientHandler implements Runnable {
         return new Response("SUCCESS", "Lấy danh sách người dùng!", gson.toJson(users));
     }
 
+    private Response handleGetAdminAuctions() {
+        List<AuctionSession> auctions = AuctionSessionDAO.getAllAuctionsForAdmin();
+        return new Response("SUCCESS", "Lấy danh sách phiên quản trị!", gson.toJson(auctions));
+    }
+
     private Response handleDeleteUser(String payload) {
         try {
             int userId = Integer.parseInt(payload.trim());
             User target = userDAO.getUserById(userId);
             if (target != null && "ADMIN".equalsIgnoreCase(target.getRole())) {
-                return new Response("ERROR", "Khong the xoa tai khoan ADMIN!", null);
+                return new Response("ERROR", "Không thể xóa tài khoản ADMIN!", null);
             }
             boolean success = userDAO.deleteUser(userId);
             if (success) return new Response("SUCCESS", "Xóa người dùng thành công!", null);
@@ -449,11 +835,11 @@ public class ClientHandler implements Runnable {
             if (success) {
                 AuctionEvent listEvent = new AuctionEvent(AuctionEvent.ITEM_LIST_UPDATED, auctionId);
                 ClientManager.getInstance().broadcastEvent(listEvent);
-                return new Response("SUCCESS", "Da danh dau phien dau gia la PAID!", null);
+                return new Response("SUCCESS", "Đã đánh dấu phiên đấu giá là PAID!", null);
             }
-            return new Response("ERROR", "Chi co the danh dau PAID cho phien FINISHED!", null);
+            return new Response("ERROR", "Chỉ có thể đánh dấu PAID cho phiên FINISHED!", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Loi: " + e.getMessage(), null);
+            return new Response("ERROR", "Lỗi: " + e.getMessage(), null);
         }
     }
 
