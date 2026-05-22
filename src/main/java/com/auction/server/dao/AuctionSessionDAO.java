@@ -436,6 +436,8 @@ public class AuctionSessionDAO {
         try { session.setItemDescription(rs.getString("item_description")); } catch (SQLException ignored) {}
         try { session.setItemCategory(rs.getString("item_category")); } catch (SQLException ignored) {}
         try { session.setItemImagePath(rs.getString("item_image_path")); } catch (SQLException ignored) {}
+        try { session.setStartingPrice(rs.getDouble("item_starting_price")); } catch (SQLException ignored) {}
+        try { session.setMinIncrement(rs.getDouble("item_min_increment")); } catch (SQLException ignored) {}
         try { session.setBidCount(rs.getInt("bid_count")); } catch (SQLException ignored) {}
         try { session.setCheckoutStatus(rs.getString("checkout_status")); } catch (SQLException ignored) {}
         try { session.setPaymentDueAt(rs.getTimestamp("payment_due_at")); } catch (SQLException ignored) {}
@@ -447,7 +449,8 @@ public class AuctionSessionDAO {
 
     private static String baseAuctionSelect() {
         return "SELECT a.*, i.name AS item_name, i.description AS item_description, i.category AS item_category, " +
-                "i.image_path AS item_image_path, i.seller_id AS seller_id, u.username AS winner_name, " +
+                "i.image_path AS item_image_path, i.starting_price AS item_starting_price, " +
+                "i.min_increment AS item_min_increment, i.seller_id AS seller_id, u.username AS winner_name, " +
                 "(SELECT COUNT(*) FROM bids b WHERE b.auction_id = a.id) AS bid_count " +
                 "FROM auction_sessions a JOIN items i ON a.item_id = i.id " +
                 "LEFT JOIN users u ON a.winner_id = u.id ";

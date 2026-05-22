@@ -14,7 +14,7 @@ public class BidDAO {
      * @return "SUCCESS" nếu thành công, chuỗi lỗi nếu thất bại.
      */
     public static String placeBid(int auctionId, int userId, double bidAmount) {
-        String checkAuctionSql = "SELECT a.status, a.end_time, a.current_highest_bid, a.item_id, i.min_increment " +
+        String checkAuctionSql = "SELECT a.status, a.end_time, a.current_highest_bid, a.item_id, i.min_increment, i.seller_id " +
                 "FROM auction_sessions a JOIN items i ON a.item_id = i.id WHERE a.id = ? FOR UPDATE";
         String insertBidSql = "INSERT INTO bids (auction_id, user_id, bid_amount) VALUES (?, ?, ?)";
         String updateAuctionSql = "UPDATE auction_sessions SET current_highest_bid = ? WHERE id = ?";
@@ -31,6 +31,7 @@ public class BidDAO {
             double currentHighestBid;
             double minIncrement;
             int itemId;
+            int sellerId;
 
             try (PreparedStatement ps = conn.prepareStatement(checkAuctionSql)) {
                 ps.setInt(1, auctionId);
@@ -44,6 +45,12 @@ public class BidDAO {
                 currentHighestBid = rs.getDouble("current_highest_bid");
                 minIncrement = rs.getDouble("min_increment");
                 itemId = rs.getInt("item_id");
+                sellerId = rs.getInt("seller_id");
+            }
+
+            if (sellerId == userId) {
+                conn.rollback();
+                return "Bạn không thể đấu giá sản phẩm của chính mình.";
             }
 
             String validation = validateBid(status, endTime, currentHighestBid, minIncrement, bidAmount,
@@ -62,7 +69,7 @@ public class BidDAO {
             // Kiểm tra giá đấu hợp lệ
             if (endTime == null || endTime.getTime() <= System.currentTimeMillis()) {
                 conn.rollback();
-                return "Phien dau gia da het thoi gian!";
+                return "Phiên đấu giá đã hết thời gian!";
             }
 
             double minRequired = currentHighestBid + minIncrement;
@@ -116,15 +123,18 @@ public class BidDAO {
     public static String validateBid(String status, Timestamp endTime, double currentHighestBid,
                                      double minIncrement, double bidAmount, long nowMillis) {
         if (!"RUNNING".equals(status)) {
-            return "Phien dau gia khong o trang thai hoat dong! (Trang thai: " + status + ")";
+            return "Phiên đấu giá không ở trạng thái hoạt động! (Trạng thái: " + status + ")";
         }
         if (endTime == null || endTime.getTime() <= nowMillis) {
-            return "Phien dau gia da het thoi gian!";
+            return "Phiên đấu giá đã hết thời gian!";
+        }
+        if (!Double.isFinite(bidAmount) || bidAmount <= 0) {
+            return "Giá trả phải lớn hơn 0!";
         }
 
         double minRequired = currentHighestBid + minIncrement;
         if (bidAmount < minRequired) {
-            return String.format("Gia tra khong hop le! Ban phai tra it nhat %,.0f VND", minRequired);
+            return String.format("Giá trả không hợp lệ! Bạn phải trả ít nhất %,.0f VNĐ", minRequired);
         }
         return "SUCCESS";
     }
