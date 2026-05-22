@@ -13,6 +13,7 @@ public abstract class User extends Entity {
     protected String fullName;
     protected String role;
     protected String email;
+    protected boolean emailVerified;
     protected double legitPoints = 100.0;
     protected Timestamp bannedUntil;
     protected int unpaidStrikeCount;
@@ -60,6 +61,9 @@ public abstract class User extends Entity {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public boolean isEmailVerified() { return emailVerified; }
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
 
     public double getLegitPoints() { return legitPoints; }
     public void setLegitPoints(double legitPoints) { this.legitPoints = legitPoints; }
