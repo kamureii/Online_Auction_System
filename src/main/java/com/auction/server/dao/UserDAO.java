@@ -85,6 +85,33 @@ public class UserDAO {
             }
         } catch (SQLException e) {
             System.err.println("Lỗi đăng nhập: " + e.getMessage());
+            throw new IllegalStateException("Không thể kết nối database. Hãy kiểm tra MySQL và cấu hình database.", e);
+        }
+        return null;
+    }
+
+    public User findByLoginIdentifier(String loginIdentifier) {
+        String sql = "SELECT * FROM users WHERE email = ? OR username = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, loginIdentifier);
+            ps.setString(2, loginIdentifier);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                User user = UserFactory.createUser(
+                        rs.getString("role"),
+                        rs.getInt("id"),
+                        rs.getString("username"),
+                        null,
+                        rs.getString("fullname"),
+                        rs.getString("email")
+                );
+                applyTrustFields(user, rs);
+                applyProfileFields(user, rs);
+                return user;
+            }
+        } catch (SQLException e) {
+            System.err.println("Loi tim tai khoan: " + e.getMessage());
         }
         return null;
     }
@@ -218,24 +245,40 @@ public class UserDAO {
         if (fullName.isBlank() || email.isBlank() || email.length() > 100 || fullName.length() > 100) {
             return false;
         }
-        String sql = "UPDATE users SET fullname = ?, email = ?, phone = ?, address = ?, city = ?, district = ?, " +
-                "ward = ?, citizen_id = ?, gender = ?, birth_date = ? WHERE id = ?";
+        String sql = "UPDATE users SET fullname = ?, email = ?, " +
+                "email_verified = CASE WHEN email <> ? THEN FALSE ELSE email_verified END, " +
+                "email_verified_at = CASE WHEN email <> ? THEN NULL ELSE email_verified_at END, " +
+                "phone = ?, address = ?, city = ?, district = ?, ward = ?, citizen_id = ?, gender = ?, birth_date = ? WHERE id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, fullName);
             ps.setString(2, email);
-            ps.setString(3, trimToLimit(profile.getPhone(), 30));
-            ps.setString(4, trimToLimit(profile.getAddress(), 255));
-            ps.setString(5, trimToLimit(profile.getCity(), 80));
-            ps.setString(6, trimToLimit(profile.getDistrict(), 80));
-            ps.setString(7, trimToLimit(profile.getWard(), 80));
-            ps.setString(8, trimToLimit(profile.getCitizenId(), 30));
-            ps.setString(9, trimToLimit(profile.getGender(), 20));
-            ps.setString(10, trimToLimit(profile.getBirthDate(), 20));
-            ps.setInt(11, userId);
+            ps.setString(3, email);
+            ps.setString(4, email);
+            ps.setString(5, trimToLimit(profile.getPhone(), 30));
+            ps.setString(6, trimToLimit(profile.getAddress(), 255));
+            ps.setString(7, trimToLimit(profile.getCity(), 80));
+            ps.setString(8, trimToLimit(profile.getDistrict(), 80));
+            ps.setString(9, trimToLimit(profile.getWard(), 80));
+            ps.setString(10, trimToLimit(profile.getCitizenId(), 30));
+            ps.setString(11, trimToLimit(profile.getGender(), 20));
+            ps.setString(12, trimToLimit(profile.getBirthDate(), 20));
+            ps.setInt(13, userId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             System.err.println("Loi cap nhat ho so: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean markEmailVerified(int userId) {
+        String sql = "UPDATE users SET email_verified = TRUE, email_verified_at = NOW() WHERE id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Loi xac thuc email: " + e.getMessage());
             return false;
         }
     }
@@ -304,6 +347,7 @@ public class UserDAO {
     }
 
     private void applyProfileFields(User user, ResultSet rs) throws SQLException {
+        try { user.setEmailVerified(rs.getBoolean("email_verified")); } catch (SQLException ignored) {}
         try { user.setPhone(rs.getString("phone")); } catch (SQLException ignored) {}
         try { user.setAddress(rs.getString("address")); } catch (SQLException ignored) {}
         try { user.setCity(rs.getString("city")); } catch (SQLException ignored) {}
@@ -319,6 +363,7 @@ public class UserDAO {
         dto.setId(user.getId());
         dto.setUsername(user.getUsername());
         dto.setEmail(user.getEmail());
+        dto.setEmailVerified(user.isEmailVerified());
         dto.setFullName(user.getFullName());
         dto.setRole(user.getRole());
         dto.setLegitPoints(user.getLegitPoints());
@@ -342,7 +387,7 @@ public class UserDAO {
         return safe.length() <= maxLength ? safe : safe.substring(0, maxLength);
     }
 
-    boolean updatePasswordHash(int userId, String passwordHash) {
+    public boolean updatePasswordHash(int userId, String passwordHash) {
         String sql = "UPDATE users SET password = ? WHERE id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
