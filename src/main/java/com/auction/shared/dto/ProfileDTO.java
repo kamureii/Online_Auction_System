@@ -4,6 +4,7 @@ public class ProfileDTO {
     private int id;
     private String username;
     private String email;
+    private boolean emailVerified;
     private String fullName;
     private String role;
     private double legitPoints;
@@ -26,6 +27,9 @@ public class ProfileDTO {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public boolean isEmailVerified() { return emailVerified; }
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
 
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }

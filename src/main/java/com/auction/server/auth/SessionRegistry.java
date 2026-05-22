@@ -58,6 +58,10 @@ public class SessionRegistry {
         return token != null && sessions.remove(token) != null;
     }
 
+    public void revokeUserSessions(int userId) {
+        sessions.entrySet().removeIf(entry -> entry.getValue().user().getId() == userId);
+    }
+
     public void clearExpired() {
         long now = System.currentTimeMillis();
         sessions.entrySet().removeIf(entry -> entry.getValue().expiresAt() <= now);
