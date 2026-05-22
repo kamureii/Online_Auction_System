@@ -19,7 +19,7 @@ mysql -u root -p < database/init.sql
 Tạo file .env:
 AUCTION_DB_URL=jdbc:mysql://localhost:3306/online_auction
 AUCTION_DB_USER=root
-AUCTION_DB_PASSWORD=your_password
+AUCTION_DB_PASSWORD=Kamurei2911
 
 ## Build
 mvn clean package
