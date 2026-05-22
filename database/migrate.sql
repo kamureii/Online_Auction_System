@@ -12,6 +12,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_until DATETIME DEFAULT NULL AF
 ALTER TABLE users ADD COLUMN IF NOT EXISTS unpaid_strike_count INT NOT NULL DEFAULT 0 AFTER banned_until;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS paid_streak_count INT NOT NULL DEFAULT 0 AFTER unpaid_strike_count;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(30) NULL AFTER paid_streak_count;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE AFTER email;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at DATETIME DEFAULT NULL AFTER email_verified;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS address VARCHAR(255) NULL AFTER phone;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS city VARCHAR(80) NULL AFTER address;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS district VARCHAR(80) NULL AFTER city;
@@ -33,6 +35,24 @@ CREATE TABLE IF NOT EXISTS payment_profiles (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS verification_codes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type ENUM('EMAIL', 'PASSWORD_RESET') NOT NULL,
+    target VARCHAR(160) NOT NULL,
+    code_hash VARCHAR(255) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    attempts INT NOT NULL DEFAULT 0,
+    max_attempts INT NOT NULL DEFAULT 5,
+    used BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_verification_lookup (user_id, type, target, used, expires_at),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+ALTER TABLE verification_codes
+    MODIFY COLUMN type ENUM('EMAIL', 'PASSWORD_RESET') NOT NULL;
 
 -- Thêm bảng auto_bids (nếu chưa có)
 CREATE TABLE IF NOT EXISTS auto_bids (
@@ -84,6 +104,15 @@ CREATE TABLE IF NOT EXISTS cart_items (
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
     FOREIGN KEY (bidder_id) REFERENCES users(id) ON DELETE CASCADE
 );
+ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS delivery_status ENUM('WAITING_PAYMENT', 'WAITING_SHIPMENT', 'SHIPPING', 'DELIVERED') NOT NULL DEFAULT 'WAITING_PAYMENT' AFTER shipping_address;
+ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS tracking_code VARCHAR(120) NULL AFTER delivery_status;
+ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS shipped_at DATETIME DEFAULT NULL AFTER paid_at;
+ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS delivered_at DATETIME DEFAULT NULL AFTER shipped_at;
+UPDATE cart_items
+SET delivery_status = CASE
+    WHEN status = 'PAID' AND delivery_status = 'WAITING_PAYMENT' THEN 'WAITING_SHIPMENT'
+    ELSE delivery_status
+END;
 
 CREATE TABLE IF NOT EXISTS auction_participants (
     auction_id INT NOT NULL,
