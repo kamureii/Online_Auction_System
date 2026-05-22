@@ -18,6 +18,8 @@ public class AuctionSession extends Entity {
     private String itemDescription;
     private String itemCategory;
     private String itemImagePath;
+    private double startingPrice;
+    private double minIncrement;
     private int bidCount;
     private String checkoutStatus;
     private Timestamp paymentDueAt;
@@ -80,6 +82,12 @@ public class AuctionSession extends Entity {
 
     public String getItemImagePath() { return itemImagePath; }
     public void setItemImagePath(String itemImagePath) { this.itemImagePath = itemImagePath; }
+
+    public double getStartingPrice() { return startingPrice; }
+    public void setStartingPrice(double startingPrice) { this.startingPrice = startingPrice; }
+
+    public double getMinIncrement() { return minIncrement; }
+    public void setMinIncrement(double minIncrement) { this.minIncrement = minIncrement; }
 
     public int getBidCount() { return bidCount; }
     public void setBidCount(int bidCount) { this.bidCount = bidCount; }

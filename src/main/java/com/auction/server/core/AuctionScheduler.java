@@ -70,12 +70,12 @@ public class AuctionScheduler {
                 if (CartDAO.cancelOverdue(item.getId())) {
                     AuctionSessionDAO.markCheckoutCanceled(item.getAuctionId());
                     userDAO.applyUnpaidPenalty(item.getBidderId());
-                    NotificationDAO.create(new Notification(item.getBidderId(), "Checkout cancelled",
-                            "Ban da qua han thanh toan 7 ngay. Diem uy tin bi tru va tai khoan bi khoa dau gia 7 ngay.", "PENALTY"));
+                    NotificationDAO.create(new Notification(item.getBidderId(), "Checkout đã hủy",
+                            "Bạn đã quá hạn thanh toán 7 ngày. Điểm uy tín bị trừ và tài khoản bị khóa đấu giá 7 ngày.", "PENALTY"));
                     AuctionSession session = AuctionSessionDAO.getAuctionById(item.getAuctionId());
                     if (session != null) {
-                        Notification sellerNotice = new Notification(session.getSellerId(), "Checkout cancelled",
-                                session.getItemName() + " chua duoc thanh toan. Ban co the dang lai voi cung thong so hoac sua chi tiet.", "SELLER_CANCELLED");
+                        Notification sellerNotice = new Notification(session.getSellerId(), "Checkout đã hủy",
+                                session.getItemName() + " chưa được thanh toán. Bạn có thể đăng lại với cùng thông số hoặc sửa chi tiết.", "SELLER_CANCELLED");
                         sellerNotice.setReferenceId(session.getId());
                         NotificationDAO.create(sellerNotice);
                     }
@@ -97,11 +97,11 @@ public class AuctionScheduler {
             AuctionSessionDAO.setWinner(session.getId(), winnerId);
             CartDAO.addWonItem(session, winnerId);
             String winnerName = userDAO.getUsernameById(winnerId);
-            NotificationDAO.create(new Notification(winnerId, "You won an auction",
-                    session.getItemName() + " da duoc them vao gio hang. Vui long thanh toan trong 7 ngay.", "WIN"));
-            NotificationDAO.create(new Notification(session.getSellerId(), "Auction finished",
-                    session.getItemName() + " da ket thuc. So tien du kien nhan sau 5% phi: " +
-                            String.format("%,.0f VND", session.getCurrentHighestBid() * 0.95) + ". Trang thai checkout: PENDING.", "SELLER_PAYMENT"));
+            NotificationDAO.create(new Notification(winnerId, "Bạn đã thắng đấu giá",
+                    session.getItemName() + " đã được thêm vào giỏ hàng. Vui lòng thanh toán trong 7 ngày.", "WIN"));
+            NotificationDAO.create(new Notification(session.getSellerId(), "Phiên đấu giá đã kết thúc",
+                    session.getItemName() + " đã kết thúc. Số tiền dự kiến nhận sau 5% phí: " +
+                            String.format("%,.0f VNĐ", session.getCurrentHighestBid() * 0.95) + ". Trạng thái checkout: PENDING.", "SELLER_PAYMENT"));
 
             System.out.println("!!! Phiên #" + session.getId() + " kết thúc. Winner: " + winnerName +
                     " | Giá: " + String.format("%,.0f", session.getCurrentHighestBid()) + " VNĐ");

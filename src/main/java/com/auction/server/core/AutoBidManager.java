@@ -1,9 +1,12 @@
 package com.auction.server.core;
 
 import com.auction.server.dao.AutoBidDAO;
+import com.auction.server.dao.AuctionSessionDAO;
 import com.auction.server.dao.BidDAO;
 import com.auction.server.dao.UserDAO;
+import com.auction.shared.model.AuctionSession;
 import com.auction.shared.model.AutoBid;
+import com.auction.shared.model.User;
 import com.auction.shared.observer.AuctionEvent;
 
 import java.util.List;
@@ -20,6 +23,10 @@ public class AutoBidManager {
      */
     public static void processAutoBids(int auctionId, int currentBidderId, double currentPrice) {
         int guard = 0;
+        AuctionSession session = AuctionSessionDAO.getAuctionById(auctionId);
+        if (session == null) {
+            return;
+        }
 
         while (guard++ < MAX_AUTO_BID_STEPS) {
             List<AutoBid> autoBids = AutoBidDAO.getActiveAutoBids(auctionId);
@@ -28,6 +35,15 @@ public class AutoBidManager {
             if (candidate == null) {
                 deactivateExhaustedAutoBids(autoBids, currentBidderId, currentPrice);
                 return;
+            }
+
+            User bidder = userDAO.getUserById(candidate.getUserId());
+            if (candidate.getUserId() == session.getSellerId()
+                    || bidder == null
+                    || !bidder.isEmailVerified()
+                    || userDAO.isBidderBanned(candidate.getUserId())) {
+                AutoBidDAO.deactivateAutoBid(candidate.getId());
+                continue;
             }
 
             double nextBid = calculateNextBid(candidate, currentPrice);
