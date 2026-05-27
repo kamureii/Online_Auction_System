@@ -12,6 +12,8 @@
 - Maven
 - Gson
 
+## File JAR nộp bài nằm tại: release/online-auction.jar
+
 ## Cài đặt database
 mysql -u root -p < database/init.sql
 
