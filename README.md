@@ -21,9 +21,9 @@ java -jar target/online-auction.jar server
 java -jar target/online-auction.jar client
 
 ## Tài khoản demo
-admin / 123456
-seller1 / 123456
-bidder1 / 123456
+- admin / 123456
+- seller1 / 123456
+- bidder1 / 123456
 
 ## Chức năng đã hoàn thành
 - Đăng ký, đăng nhập
