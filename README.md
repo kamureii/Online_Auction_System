@@ -14,18 +14,6 @@
 
 ## File JAR nộp bài nằm tại: release/online-auction.jar
 
-## Cài đặt database
-mysql -u root -p < database/init.sql
-
-## Cấu hình môi trường
-Tạo file .env:
-AUCTION_DB_URL=jdbc:mysql://localhost:3306/online_auction
-AUCTION_DB_USER=root
-AUCTION_DB_PASSWORD=Kamurei2911
-
-## Build
-mvn clean package
-
 ## Chạy server
 java -jar target/online-auction.jar server
 
