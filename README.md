@@ -18,7 +18,7 @@
 java -jar target/online-auction.jar server
 
 ## Chạy client
-java -jar target/online-auction.jar client
+java "-Dauction.server.host=14.177.166.233" "-Dauction.server.port=8080" "-Dauction.rest.port=8081" -jar .\target\online-auction.jar client
 
 ## Tài khoản demo
 - admin / 123456
