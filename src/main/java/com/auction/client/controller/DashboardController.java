@@ -3,6 +3,7 @@ package com.auction.client.controller;
 import com.auction.client.navigation.SceneNavigator;
 import com.auction.client.service.ServerConnector;
 import com.auction.client.ui.AiChatWidget;
+import com.auction.client.ui.RealtimeToast;
 import com.auction.client.util.VietnamAddressData;
 import com.auction.shared.dto.PaymentProfileDTO;
 import com.auction.shared.dto.ProfileDTO;
@@ -1761,12 +1762,12 @@ public class DashboardController implements AuctionEventListener {
         notificationBtn.setText(null);
         notificationBtn.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         if (ServerConnector.currentUser == null) {
-            notificationBtn.setGraphic(notificationGraphic(3));
+            notificationBtn.setGraphic(notificationGraphic(0));
             return;
         }
         List<Notification> notifications = connector.getNotifications();
         long unread = notifications.stream().filter(n -> !n.isRead()).count();
-        notificationBtn.setGraphic(notificationGraphic(unread > 0 ? unread : 3));
+        notificationBtn.setGraphic(notificationGraphic(unread));
     }
 
     private Node notificationGraphic(long unread) {
@@ -2170,6 +2171,18 @@ public class DashboardController implements AuctionEventListener {
     public void onBidUpdate(AuctionEvent event) {
         if (!showingAccountHub)
             refreshAuctionList();
+        if (shouldShowBidToast(event)) {
+            RealtimeToast.showBid(rootStack, event.getBidderName(), event.getNewPrice());
+        }
+    }
+
+    private boolean shouldShowBidToast(AuctionEvent event) {
+        User currentUser = ServerConnector.currentUser;
+        if (event == null || currentUser == null) {
+            return false;
+        }
+        int userId = currentUser.getId();
+        return userId == event.getBidderId() || userId == event.getSellerId();
     }
 
     @Override

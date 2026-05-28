@@ -503,9 +503,9 @@ public class ClientHandler implements Runnable {
                 return new Response("ERROR", "Tài khoản đang bị khóa đấu giá do quá hạn thanh toán.", null);
             }
 
-            String result = BidDAO.placeBid(auctionId, userId, bidAmount);
+            BidDAO.PlaceBidResult result = BidDAO.placeBidResult(auctionId, userId, bidAmount);
 
-            if ("SUCCESS".equals(result)) {
+            if (result.isSuccess()) {
                 AuctionParticipantDAO.ensureBidderParticipant(auctionId, userId);
                 String bidderName = userDAO.getUsernameById(userId);
 
@@ -527,17 +527,19 @@ public class ClientHandler implements Runnable {
 
                 // Broadcast bid update
                 AuctionEvent bidEvent = new AuctionEvent(AuctionEvent.BID_UPDATE, auctionId);
-                bidEvent.setNewPrice(bidAmount);
+                bidEvent.setNewPrice(result.getBidAmount());
                 bidEvent.setBidderId(userId);
                 bidEvent.setBidderName(bidderName);
+                bidEvent.setItemName(result.getItemName());
+                bidEvent.setSellerId(result.getSellerId());
                 ClientManager.getInstance().broadcastEvent(bidEvent);
 
                 // Xử lý auto-bid của các đối thủ
-                AutoBidManager.processAutoBids(auctionId, userId, bidAmount);
+                AutoBidManager.processAutoBids(auctionId, userId, result.getBidAmount());
 
                 return new Response("SUCCESS", "Đặt giá thành công!", null);
             }
-            return new Response("ERROR", result, null);
+            return new Response("ERROR", result.getMessage(), null);
         } catch (Exception e) {
             return new Response("ERROR", "Lỗi đặt giá: " + e.getMessage(), null);
         }

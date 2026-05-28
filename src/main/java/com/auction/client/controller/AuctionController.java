@@ -2,6 +2,7 @@ package com.auction.client.controller;
 
 import com.auction.client.navigation.SceneNavigator;
 import com.auction.client.service.ServerConnector;
+import com.auction.client.ui.RealtimeToast;
 import com.auction.shared.model.AuctionSession;
 import com.auction.shared.model.Bid;
 import com.auction.shared.network.Response;
@@ -53,6 +54,7 @@ import java.util.Locale;
 public class AuctionController implements AuctionEventListener {
 
     // UI Elements
+    @FXML private StackPane rootStack;
     @FXML private Label productNameLabel;
     @FXML private Label currentPriceLabel;
     @FXML private Label timerLabel;
@@ -467,6 +469,7 @@ public class AuctionController implements AuctionEventListener {
             // Thêm điểm mới vào biểu đồ (realtime)
             // Refresh lịch sử bid
             loadBidHistory();
+            RealtimeToast.showBid(rootStack, event.getBidderName(), event.getNewPrice());
 
             showMessage(event.getBidderName() + " vừa trả giá " +
                     String.format("%,.0f VNĐ", event.getNewPrice()), Color.BLUE);

@@ -20,6 +20,8 @@ public class AuctionEvent {
     private double newPrice;
     private String bidderName;
     private int bidderId;
+    private String itemName;
+    private int sellerId;
     private String winnerName;
     private long newEndTime; // epoch millis cho anti-sniping
 
@@ -48,6 +50,12 @@ public class AuctionEvent {
 
     public int getBidderId() { return bidderId; }
     public void setBidderId(int bidderId) { this.bidderId = bidderId; }
+
+    public String getItemName() { return itemName; }
+    public void setItemName(String itemName) { this.itemName = itemName; }
+
+    public int getSellerId() { return sellerId; }
+    public void setSellerId(int sellerId) { this.sellerId = sellerId; }
 
     public String getWinnerName() { return winnerName; }
     public void setWinnerName(String winnerName) { this.winnerName = winnerName; }

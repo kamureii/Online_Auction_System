@@ -1147,6 +1147,28 @@
     -fx-text-fill: white;
 }
 
+.realtime-toast {
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-padding: 13 16;
+    -fx-font-size: 13px;
+    -fx-font-weight: 900;
+    -fx-effect: dropshadow(gaussian, rgba(17, 19, 24, 0.24), 24, 0.18, 0, 10);
+}
+
+.realtime-toast-info,
+.realtime-toast-success {
+    -fx-background-color: -auction-text;
+    -fx-border-color: rgba(255, 255, 255, 0.24);
+    -fx-text-fill: -auction-bg-soft;
+}
+
+.realtime-toast-error {
+    -fx-background-color: -auction-red;
+    -fx-border-color: rgba(255, 255, 255, 0.28);
+    -fx-text-fill: white;
+}
+
 .image-fallback,
 .ai-chat-logo-fallback {
     -fx-text-fill: -auction-muted;
