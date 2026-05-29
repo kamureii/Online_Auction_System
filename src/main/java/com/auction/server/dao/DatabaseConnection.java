@@ -12,9 +12,8 @@ import java.net.URI;
 import java.util.Properties;
 
 /**
- * Quản lý kết nối Database (Singleton Pattern cho cấu hình).
- * Mỗi lần gọi getConnection() trả về một Connection mới để tránh
- * lỗi khi nhiều thread cùng sử dụng.
+ * Tạo kết nối MySQL từ cấu hình runtime.
+ * Mỗi lần gọi trả về một Connection mới để DAO dùng try-with-resources an toàn.
  */
 public class DatabaseConnection {
     private static final String DEFAULT_URL = "jdbc:mysql://localhost:3306/online_auction";
@@ -27,10 +26,6 @@ public class DatabaseConnection {
 
     private DatabaseConnection() {}
 
-    /**
-     * Trả về một Connection mới mỗi lần gọi.
-     * Caller phải tự đóng connection sau khi dùng xong (dùng try-with-resources).
-     */
     public static Connection getConnection() throws SQLException {
         if (!driverLoaded) {
             try {

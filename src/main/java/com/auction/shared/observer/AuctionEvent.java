@@ -1,11 +1,9 @@
 package com.auction.shared.observer;
 
 /**
- * Event object cho Observer Pattern.
- * Chứa thông tin sự kiện đấu giá được push từ server.
+ * Dữ liệu sự kiện dùng trong Observer pattern giữa server và client.
  */
 public class AuctionEvent {
-    // Các loại sự kiện
     public static final String BID_UPDATE = "BID_UPDATE";
     public static final String AUCTION_ENDED = "AUCTION_ENDED";
     public static final String AUCTION_STARTED = "AUCTION_STARTED";
@@ -14,16 +12,15 @@ public class AuctionEvent {
 
     private String eventType;
     private int auctionId;
-    private String data; // JSON payload bổ sung
+    private String data;
 
-    // Dữ liệu thường dùng (để tiện truy cập, không cần parse data)
     private double newPrice;
     private String bidderName;
     private int bidderId;
     private String itemName;
     private int sellerId;
     private String winnerName;
-    private long newEndTime; // epoch millis cho anti-sniping
+    private long newEndTime;
 
     public AuctionEvent() {}
 
@@ -32,7 +29,6 @@ public class AuctionEvent {
         this.auctionId = auctionId;
     }
 
-    // Getters & Setters
     public String getEventType() { return eventType; }
     public void setEventType(String eventType) { this.eventType = eventType; }
 

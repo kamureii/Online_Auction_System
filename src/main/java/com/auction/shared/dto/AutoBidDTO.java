@@ -1,7 +1,7 @@
 package com.auction.shared.dto;
 
 /**
- * DTO cho đấu giá tự động.
+ * Dữ liệu cấu hình đấu giá tự động.
  */
 public class AutoBidDTO {
     private int auctionId;

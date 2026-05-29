@@ -46,7 +46,6 @@ public class AuctionSession extends Entity {
         this.currentHighestBid = 0;
     }
 
-    // Getters & Setters
     public int getItemId() { return itemId; }
     public void setItemId(int itemId) { this.itemId = itemId; }
 

@@ -3,9 +3,8 @@ package com.auction.shared.model;
 import java.sql.Timestamp;
 
 /**
- * Lớp trừu tượng User kế thừa Entity.
- * Các lớp con: Bidder, Seller, Admin.
- * Áp dụng Inheritance và Abstraction.
+ * Lớp cha cho các loại tài khoản trong hệ thống.
+ * OOP: Bidder, Seller, Admin và RegularUser kế thừa phần hồ sơ chung từ User.
  */
 public abstract class User extends Entity {
     protected String username;
@@ -46,7 +45,6 @@ public abstract class User extends Entity {
         this.role = role;
     }
 
-    // Getters & Setters (Encapsulation)
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 
@@ -101,6 +99,9 @@ public abstract class User extends Entity {
     public String getBirthDate() { return birthDate; }
     public void setBirthDate(String birthDate) { this.birthDate = birthDate; }
 
+    /**
+     * Các lớp con có thể override phương thức này để hiển thị đúng vai trò.
+     */
     @Override
     public String getDisplayInfo() {
         return String.format("[%s] %s (%s)", role, fullName, username);

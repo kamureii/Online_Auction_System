@@ -1,8 +1,7 @@
 package com.auction.shared.model;
 
 /**
- * Sản phẩm điện tử (kế thừa Item).
- * Ví dụ: điện thoại, laptop, tablet...
+ * Sản phẩm điện tử, kế thừa phần dữ liệu chung từ Item.
  */
 public class Electronics extends Item {
     private String brand;
@@ -30,6 +29,6 @@ public class Electronics extends Item {
 
     @Override
     public String getCategorySpecificInfo() {
-        return "📱 Đồ điện tử" + (brand != null ? " - Hãng: " + brand : "");
+        return "Đồ điện tử" + (brand != null ? " - Hãng: " + brand : "");
     }
 }

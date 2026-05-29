@@ -1,8 +1,7 @@
 package com.auction.shared.model;
 
 /**
- * Người mua - tham gia đấu giá.
- * Kế thừa User, override getDisplayInfo() (Polymorphism).
+ * Tài khoản người mua. Override getDisplayInfo() để hiển thị đúng vai trò.
  */
 public class Bidder extends User {
 
@@ -20,6 +19,6 @@ public class Bidder extends User {
 
     @Override
     public String getDisplayInfo() {
-        return String.format("🛒 Người mua: %s (%s)", fullName, username);
+        return String.format("Người mua: %s (%s)", fullName, username);
     }
 }
