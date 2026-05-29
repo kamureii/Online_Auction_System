@@ -3,7 +3,7 @@ package com.auction.shared.factory;
 import com.auction.shared.model.*;
 
 /**
- * Factory Method Pattern - tạo Item theo danh mục.
+ * Factory Method: chọn lớp Item theo category, đây là điểm dễ giải thích khi vấn đáp.
  */
 public class ItemFactory {
 

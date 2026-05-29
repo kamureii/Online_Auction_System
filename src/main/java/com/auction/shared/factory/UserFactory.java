@@ -3,7 +3,7 @@ package com.auction.shared.factory;
 import com.auction.shared.model.*;
 
 /**
- * Factory Method Pattern - tạo User theo vai trò.
+ * Factory Method: gom logic chọn lớp User theo role, giúp nơi gọi không phụ thuộc constructor cụ thể.
  */
 public class UserFactory {
 

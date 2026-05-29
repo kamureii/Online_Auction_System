@@ -1,8 +1,7 @@
 package com.auction.shared.model;
 
 /**
- * Phương tiện giao thông (kế thừa Item).
- * Ví dụ: ô tô, xe máy...
+ * Sản phẩm phương tiện, kế thừa phần dữ liệu chung từ Item.
  */
 public class Vehicle extends Item {
     private int year;
@@ -30,6 +29,6 @@ public class Vehicle extends Item {
 
     @Override
     public String getCategorySpecificInfo() {
-        return "🚗 Phương tiện" + (manufacturer != null ? " - Hãng: " + manufacturer : "");
+        return "Phương tiện" + (manufacturer != null ? " - Hãng: " + manufacturer : "");
     }
 }

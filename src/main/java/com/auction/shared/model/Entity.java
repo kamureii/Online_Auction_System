@@ -3,8 +3,8 @@ package com.auction.shared.model;
 import java.sql.Timestamp;
 
 /**
- * Lớp trừu tượng cơ sở cho tất cả entity trong hệ thống.
- * Áp dụng nguyên tắc Abstraction của OOP.
+ * Lớp nền cho các model có id và thời điểm tạo.
+ * OOP: dùng abstraction để gom phần chung, còn cách hiển thị do từng lớp con quyết định.
  */
 public abstract class Entity {
     protected int id;
@@ -23,8 +23,7 @@ public abstract class Entity {
     public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }
 
     /**
-     * Phương thức trừu tượng - mỗi entity con phải tự triển khai.
-     * Áp dụng Polymorphism.
+     * Mỗi lớp con trả về mô tả riêng, đây là điểm thể hiện polymorphism.
      */
     public abstract String getDisplayInfo();
 }

@@ -1,23 +1,22 @@
 package com.auction.shared.observer;
 
 /**
- * Observer Pattern - Interface lắng nghe sự kiện đấu giá.
- * Các controller đăng ký implement interface này để nhận realtime update.
+ * Observer phía client: controller implement interface này để nhận cập nhật realtime.
  */
 public interface AuctionEventListener {
 
-    /** Khi có bid mới trong phiên đấu giá */
+    /** Có bid mới trong phiên đấu giá. */
     void onBidUpdate(AuctionEvent event);
 
-    /** Khi phiên đấu giá kết thúc */
+    /** Phiên đấu giá kết thúc. */
     void onAuctionEnded(AuctionEvent event);
 
-    /** Khi phiên đấu giá bắt đầu */
+    /** Phiên đấu giá bắt đầu. */
     void onAuctionStarted(AuctionEvent event);
 
-    /** Khi danh sách sản phẩm/phiên thay đổi */
+    /** Danh sách sản phẩm hoặc phiên thay đổi. */
     void onItemListUpdated(AuctionEvent event);
 
-    /** Khi phiên được gia hạn (anti-sniping) */
+    /** Phiên được gia hạn do anti-sniping. */
     void onAuctionExtended(AuctionEvent event);
 }

@@ -8,8 +8,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Singleton Pattern - Quản lý tất cả ClientHandler đang kết nối.
- * Hỗ trợ broadcast event realtime tới client (Observer Pattern phía server).
+ * Singleton giữ danh sách client đang online và phát event realtime cho các controller.
  */
 public class ClientManager {
     private static ClientManager instance;
@@ -36,7 +35,7 @@ public class ClientManager {
     }
 
     /**
-     * Gửi event tới TẤT CẢ clients đang kết nối.
+     * Gửi event tới tất cả client đang kết nối.
      */
     public void broadcastToAll(AuctionEvent event) {
         String eventJson = gson.toJson(event);
@@ -48,10 +47,6 @@ public class ClientManager {
         }
     }
 
-    /**
-     * Gửi event tới TẤT CẢ clients NGOẠI TRỪ sender (người gửi bid không cần nhận lại).
-     * Thực tế gửi cho tất cả để đồng bộ - sender cũng nhận.
-     */
     public void broadcastEvent(AuctionEvent event) {
         broadcastToAll(event);
     }

@@ -44,16 +44,11 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Controller phòng đấu giá trực tuyến.
- * - Countdown timer thực
- * - Realtime bid update (Observer)
- * - Lịch sử bid
- * - Biểu đồ giá (LineChart)
- * - Đấu giá tự động
+ * Controller màn đấu giá: hiển thị trạng thái phiên, nhận event realtime và xử lý đặt giá.
  */
 public class AuctionController implements AuctionEventListener {
 
-    // UI Elements
+    // FXML bindings
     @FXML private StackPane rootStack;
     @FXML private Label productNameLabel;
     @FXML private Label currentPriceLabel;
@@ -80,19 +75,19 @@ public class AuctionController implements AuctionEventListener {
     @FXML private HBox bidPanel;
     @FXML private Separator bidSeparator;
 
-    // Bid History Table
+    // Bid history
     @FXML private TableView<Bid> bidHistoryTable;
     @FXML private TableColumn<Bid, String> colBidder;
     @FXML private TableColumn<Bid, Double> colAmount;
     @FXML private TableColumn<Bid, Timestamp> colTime;
     @FXML private ListView<Bid> bidHistoryFeed;
 
-    // Price Chart
+    // Price chart
     @FXML private LineChart<String, Number> priceChart;
     @FXML private CategoryAxis xAxis;
     @FXML private NumberAxis yAxis;
 
-    // Đấu giá tự động
+    // Auto-bid
     @FXML private TextField maxBidField;
     @FXML private TextField bidIncrementField;
     @FXML private Button autoBidButton;
@@ -250,23 +245,22 @@ public class AuctionController implements AuctionEventListener {
             setTimerText(timerInactiveText(session.getStatus()));
             setTimerState("auction-state-error");
             if (session.getWinnerName() != null && !session.getWinnerName().isEmpty()) {
-                messageLabel.setText("🏆 Người thắng: " + session.getWinnerName());
+                messageLabel.setText("Người thắng: " + session.getWinnerName());
                 setLabelState(messageLabel, "auction-state-warning");
             }
         } else {
             startCountdown();
         }
 
-        // Load lịch sử bid
         loadBidHistory();
 
-        // Thêm điểm đầu tiên vào biểu đồ
+        // Có thể chưa có bid nào, nên chart cần một điểm ban đầu.
         if (priceSeries.getData().isEmpty()) {
             seedChartFallback();
         }
     }
 
-    // ========================= COUNTDOWN TIMER =========================
+    // Countdown
 
     private void startCountdown() {
         if (countdownTimeline != null) {
@@ -296,7 +290,7 @@ public class AuctionController implements AuctionEventListener {
         String timeStr = String.format("%02d:%02d:%02d", hours, minutes, seconds);
         setTimerText(timeStr);
 
-        // Đổi màu khi gần hết giờ
+        // Đổi màu khi gần hết giờ.
         if (remaining <= 30000) {
             setTimerState("auction-state-error");
         } else if (remaining <= 60000) {
@@ -306,7 +300,7 @@ public class AuctionController implements AuctionEventListener {
         }
     }
 
-    // ========================= BIDDING =========================
+    // Bidding
 
     @FXML
     public void handlePlaceBid() {
@@ -345,7 +339,7 @@ public class AuctionController implements AuctionEventListener {
         }
     }
 
-    // ========================= ĐẤU GIÁ TỰ ĐỘNG =========================
+    // Auto-bid
 
     @FXML
     public void handleSetAutoBid() {
@@ -434,7 +428,7 @@ public class AuctionController implements AuctionEventListener {
         SceneNavigator.showLogin();
     }
 
-    // ========================= BID HISTORY =========================
+    // Bid history
 
     private void loadBidHistory() {
         bidHistoryList.clear();
@@ -456,7 +450,7 @@ public class AuctionController implements AuctionEventListener {
         }
     }
 
-    // ========================= Observer Pattern =========================
+    // Realtime event callbacks
 
     @Override
     public void onBidUpdate(AuctionEvent event) {
@@ -514,7 +508,7 @@ public class AuctionController implements AuctionEventListener {
         }
     }
 
-    // ========================= UTILITY =========================
+    // Helpers
 
     private void setBidInputsDisabled(boolean disabled) {
         if (bidButton != null) bidButton.setDisable(disabled);

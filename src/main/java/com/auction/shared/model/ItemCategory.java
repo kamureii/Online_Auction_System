@@ -1,8 +1,7 @@
 package com.auction.shared.model;
 
 /**
- * Enum phân loại sản phẩm đấu giá.
- * Dùng trong Factory Method pattern.
+ * Các nhóm sản phẩm chính mà hệ thống đang hỗ trợ.
  */
 public enum ItemCategory {
     ELECTRONICS,  // Đồ điện tử

@@ -6,8 +6,7 @@ import com.google.gson.*;
 import java.lang.reflect.Type;
 
 /**
- * Factory tạo Gson instance hỗ trợ deserialize các abstract class (User, Item).
- * Áp dụng Singleton pattern.
+ * Tạo Gson dùng chung, kèm adapter để đọc đúng subclass của User và Item.
  */
 public class GsonFactory {
     private static Gson gson;
@@ -26,7 +25,7 @@ public class GsonFactory {
     }
 
     /**
-     * Deserializer cho User - đọc field "role" để tạo đúng subclass.
+     * Đọc field "role" để tạo đúng subclass của User.
      */
     private static class UserDeserializer implements JsonDeserializer<User> {
         @Override
@@ -49,7 +48,7 @@ public class GsonFactory {
     }
 
     /**
-     * Deserializer cho Item - đọc field "category" để tạo đúng subclass.
+     * Đọc field "category" để tạo đúng subclass của Item.
      */
     private static class ItemDeserializer implements JsonDeserializer<Item> {
         @Override

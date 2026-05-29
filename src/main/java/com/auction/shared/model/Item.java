@@ -1,9 +1,8 @@
 package com.auction.shared.model;
 
 /**
- * Lớp trừu tượng Item kế thừa Entity.
- * Các lớp con: Electronics, Art, Vehicle.
- * Áp dụng Inheritance và Abstraction.
+ * Lớp cha cho các nhóm sản phẩm đấu giá.
+ * OOP: Electronics, Art, Vehicle và OtherItem kế thừa dữ liệu chung từ Item.
  */
 public abstract class Item extends Entity {
     protected String name;
@@ -40,7 +39,6 @@ public abstract class Item extends Entity {
         this.sellerId = sellerId;
     }
 
-    // Getters & Setters (Encapsulation)
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
@@ -71,8 +69,7 @@ public abstract class Item extends Entity {
     }
 
     /**
-     * Phương thức trừu tượng cho thông tin chi tiết riêng từng loại.
-     * Áp dụng Polymorphism.
+     * Mỗi loại sản phẩm tự mô tả phần thông tin riêng của mình.
      */
     public abstract String getCategorySpecificInfo();
 }

@@ -1,7 +1,7 @@
 package com.auction.shared.dto;
 
 /**
- * DTO đăng ký tài khoản - có thêm field role.
+ * Dữ liệu đăng ký tài khoản gửi từ client.
  */
 public class RegisterDTO {
     private String username;

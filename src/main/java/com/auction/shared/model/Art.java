@@ -1,8 +1,7 @@
 package com.auction.shared.model;
 
 /**
- * Tác phẩm nghệ thuật (kế thừa Item).
- * Ví dụ: tranh, tượng, đồ cổ...
+ * Sản phẩm nghệ thuật, kế thừa phần dữ liệu chung từ Item.
  */
 public class Art extends Item {
     private String artist;
@@ -30,6 +29,6 @@ public class Art extends Item {
 
     @Override
     public String getCategorySpecificInfo() {
-        return "🎨 Nghệ thuật" + (artist != null ? " - Nghệ sĩ: " + artist : "");
+        return "Nghệ thuật" + (artist != null ? " - Nghệ sĩ: " + artist : "");
     }
 }

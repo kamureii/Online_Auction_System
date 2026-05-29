@@ -1,8 +1,7 @@
 package com.auction.shared.model;
 
 /**
- * Quản trị viên - quản lý hệ thống.
- * Kế thừa User, override getDisplayInfo() (Polymorphism).
+ * Tài khoản quản trị. Override getDisplayInfo() để minh họa polymorphism của User.
  */
 public class Admin extends User {
 
@@ -20,6 +19,6 @@ public class Admin extends User {
 
     @Override
     public String getDisplayInfo() {
-        return String.format("⚙️ Quản trị viên: %s (%s)", fullName, username);
+        return String.format("Quản trị viên: %s (%s)", fullName, username);
     }
 }

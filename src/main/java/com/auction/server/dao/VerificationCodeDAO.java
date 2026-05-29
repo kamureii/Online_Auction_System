@@ -40,7 +40,7 @@ public class VerificationCodeDAO {
             conn.commit();
             return true;
         } catch (SQLException e) {
-            System.err.println("Loi tao ma OTP: " + e.getMessage());
+            System.err.println("Lỗi tạo mã OTP: " + e.getMessage());
             return false;
         }
     }
@@ -75,7 +75,7 @@ public class VerificationCodeDAO {
                 );
             }
         } catch (SQLException e) {
-            System.err.println("Loi lay ma OTP: " + e.getMessage());
+            System.err.println("Lỗi lấy mã OTP: " + e.getMessage());
         }
         return null;
     }
@@ -87,7 +87,7 @@ public class VerificationCodeDAO {
             ps.setInt(1, codeId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Loi cap nhat so lan nhap OTP: " + e.getMessage());
+            System.err.println("Lỗi cập nhật số lần nhập OTP: " + e.getMessage());
             return false;
         }
     }
@@ -99,7 +99,7 @@ public class VerificationCodeDAO {
             ps.setInt(1, codeId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Loi danh dau OTP da dung: " + e.getMessage());
+            System.err.println("Lỗi đánh dấu OTP đã dùng: " + e.getMessage());
             return false;
         }
     }

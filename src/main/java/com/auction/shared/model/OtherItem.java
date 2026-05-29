@@ -1,7 +1,7 @@
 package com.auction.shared.model;
 
 /**
- * San pham khac ngoai cac nhom chuyen biet.
+ * Sản phẩm không thuộc các nhóm chuyên biệt.
  */
 public class OtherItem extends Item {
 
@@ -21,6 +21,6 @@ public class OtherItem extends Item {
 
     @Override
     public String getCategorySpecificInfo() {
-        return "San pham khac";
+        return "Sản phẩm khác";
     }
 }

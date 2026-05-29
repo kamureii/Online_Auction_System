@@ -24,9 +24,8 @@ import java.lang.reflect.Type;
 import java.util.List;
 
 /**
- * Xử lý kết nối persistent cho mỗi client.
- * Nhận Request → xử lý → gửi Response.
- * Cũng nhận push event từ ClientManager (Observer pattern).
+ * Xử lý một kết nối socket đang mở với client.
+ * Handler nhận request JSON, gọi service/DAO tương ứng rồi trả response hoặc push event.
  */
 public class ClientHandler implements Runnable {
     private final Socket clientSocket;
@@ -35,7 +34,7 @@ public class ClientHandler implements Runnable {
     private final Gson gson = new Gson();
     private final UserDAO userDAO = new UserDAO();
     private final EmailVerificationService emailVerificationService = new EmailVerificationService();
-    protected User currentUser; // User đang đăng nhập trên connection này
+    protected User currentUser;
 
     public ClientHandler(Socket socket) {
         this.clientSocket = socket;
@@ -47,7 +46,6 @@ public class ClientHandler implements Runnable {
             in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             out = new PrintWriter(clientSocket.getOutputStream(), true);
 
-            // Đăng ký vào ClientManager
             ClientManager.getInstance().addClient(this);
 
             String clientMessage;
@@ -78,83 +76,83 @@ public class ClientHandler implements Runnable {
     private Response processRequest(Request request) {
         String action = request.getAction();
 
-        if ("LOGIN".equals(action)) {
-            return handleLogin(request.getPayload());
-        }
-        if ("REGISTER".equals(action)) {
-            return handleRegister(request.getPayload());
-        }
-        if ("AUTH_SOCKET".equals(action)) {
-            return handleAuthSocket(request.getPayload());
-        }
-        if ("GET_ITEMS".equals(action)) {
-            return handleGetItems();
-        }
-        if ("GET_AUCTIONS".equals(action)) {
-            return handleGetAuctions();
-        }
-        if ("GET_PUBLIC_AUCTIONS".equals(action)) {
-            return handleGetPublicAuctions(request.getPayload());
-        }
-        if ("GET_AUCTION_DETAIL".equals(action)) {
-            return handleGetAuctionDetail(request.getPayload());
-        }
-        if ("GET_BID_HISTORY".equals(action)) {
-            return handleGetBidHistory(request.getPayload());
+        if (isPublicAction(action)) {
+            return handlePublicRequest(action, request.getPayload());
         }
         if (currentUser == null) {
-            return new Response("ERROR", "Vui lòng đăng nhập trước khi thực hiện chức năng này!", null);
+            return new Response("ERROR", "Vui lòng đăng nhập trước khi thực hiện chức năng này.", null);
         }
 
+        return handleAuthenticatedRequest(action, request.getPayload());
+    }
+
+    private boolean isPublicAction(String action) {
+        return switch (action) {
+            case "LOGIN", "REGISTER", "AUTH_SOCKET", "GET_ITEMS", "GET_AUCTIONS",
+                    "GET_PUBLIC_AUCTIONS", "GET_AUCTION_DETAIL", "GET_BID_HISTORY" -> true;
+            default -> false;
+        };
+    }
+
+    private Response handlePublicRequest(String action, String payload) {
         switch (action) {
             case "LOGIN":
-                return handleLogin(request.getPayload());
+                return handleLogin(payload);
             case "REGISTER":
-                return handleRegister(request.getPayload());
+                return handleRegister(payload);
+            case "AUTH_SOCKET":
+                return handleAuthSocket(payload);
             case "GET_ITEMS":
                 return handleGetItems();
-            case "ADD_ITEM":
-                return handleAddItem(request.getPayload());
-            case "UPDATE_ITEM":
-                return handleUpdateItem(request.getPayload());
-            case "DELETE_ITEM":
-                return handleDeleteItem(request.getPayload());
             case "GET_AUCTIONS":
                 return handleGetAuctions();
             case "GET_PUBLIC_AUCTIONS":
-                return handleGetPublicAuctions(request.getPayload());
+                return handleGetPublicAuctions(payload);
+            case "GET_AUCTION_DETAIL":
+                return handleGetAuctionDetail(payload);
+            case "GET_BID_HISTORY":
+                return handleGetBidHistory(payload);
+            default:
+                return new Response("ERROR", "Action không hợp lệ: " + action, null);
+        }
+    }
+
+    private Response handleAuthenticatedRequest(String action, String payload) {
+        switch (action) {
+            case "ADD_ITEM":
+                return handleAddItem(payload);
+            case "UPDATE_ITEM":
+                return handleUpdateItem(payload);
+            case "DELETE_ITEM":
+                return handleDeleteItem(payload);
             case "GET_MY_AUCTIONS":
                 return handleGetMyAuctions();
             case "GET_JOINED_AUCTIONS":
                 return handleGetJoinedAuctions();
             case "GET_AUCTION_HISTORY":
                 return handleGetAuctionHistory();
-            case "GET_AUCTION_DETAIL":
-                return handleGetAuctionDetail(request.getPayload());
             case "JOIN_AUCTION":
-                return handleJoinAuction(request.getPayload());
+                return handleJoinAuction(payload);
             case "RELIST_AUCTION":
-                return handleRelistAuction(request.getPayload());
+                return handleRelistAuction(payload);
             case "PLACE_BID":
-                return handlePlaceBid(request.getPayload());
-            case "GET_BID_HISTORY":
-                return handleGetBidHistory(request.getPayload());
+                return handlePlaceBid(payload);
             case "SET_AUTO_BID":
-                return handleSetAutoBid(request.getPayload());
+                return handleSetAutoBid(payload);
             case "CANCEL_AUTO_BID":
-                return handleCancelAutoBid(request.getPayload());
+                return handleCancelAutoBid(payload);
             case "GET_PROFILE":
                 return handleGetProfile();
             case "UPDATE_PROFILE":
-                return handleUpdateProfile(request.getPayload());
+                return handleUpdateProfile(payload);
             case "REQUEST_EMAIL_VERIFICATION":
                 return handleRequestEmailVerification();
             case "CONFIRM_EMAIL_VERIFICATION":
-                return handleConfirmEmailVerification(request.getPayload());
+                return handleConfirmEmailVerification(payload);
             case "GET_PAYMENT_PROFILE":
                 return handleGetPaymentProfile();
             case "UPDATE_PAYMENT_PROFILE":
-                return handleUpdatePaymentProfile(request.getPayload());
+                return handleUpdatePaymentProfile(payload);
             case "GET_NOTIFICATIONS":
                 return handleGetNotifications();
             case "MARK_NOTIFICATIONS_READ":
@@ -162,11 +160,11 @@ public class ClientHandler implements Runnable {
             case "GET_CART":
                 return handleGetCart();
             case "CHECKOUT":
-                return handleCheckout(request.getPayload());
+                return handleCheckout(payload);
             case "GET_SELLER_ORDERS":
                 return handleGetSellerOrders();
             case "UPDATE_DELIVERY_STATUS":
-                return handleUpdateDeliveryStatus(request.getPayload());
+                return handleUpdateDeliveryStatus(payload);
             case "GET_ALL_USERS":
                 if (!hasRole("ADMIN")) return forbidden("ADMIN");
                 return handleGetAllUsers();
@@ -175,15 +173,15 @@ public class ClientHandler implements Runnable {
                 return handleGetAdminAuctions();
             case "DELETE_USER":
                 if (!hasRole("ADMIN")) return forbidden("ADMIN");
-                return handleDeleteUser(request.getPayload());
+                return handleDeleteUser(payload);
             case "CANCEL_AUCTION":
                 if (!hasRole("ADMIN")) return forbidden("ADMIN");
-                return handleCancelAuction(request.getPayload());
+                return handleCancelAuction(payload);
             case "MARK_AUCTION_PAID":
                 if (!hasRole("ADMIN")) return forbidden("ADMIN");
-                return handleMarkAuctionPaid(request.getPayload());
+                return handleMarkAuctionPaid(payload);
             default:
-                return new Response("ERROR", "Action không hợp lệ: " + request.getAction(), null);
+                return new Response("ERROR", "Action không hợp lệ: " + action, null);
         }
     }
 
@@ -215,7 +213,7 @@ public class ClientHandler implements Runnable {
         return new Response("ERROR", "Không có quyền thực hiện chức năng này. Cần vai trò: " + requiredRole, null);
     }
 
-    // ========================= AUTH =========================
+    // Auth
 
     private Response handleLogin(String payload) {
         LoginDTO loginData = gson.fromJson(payload, LoginDTO.class);
@@ -279,7 +277,7 @@ public class ClientHandler implements Runnable {
         return new Response("ERROR", "Đăng ký thất bại! Vui lòng thử lại.", null);
     }
 
-    // ========================= ITEMS =========================
+    // Items
 
     private Response handleGetItems() {
         List<Item> items = ItemDAO.getAllItems();
@@ -308,7 +306,6 @@ public class ClientHandler implements Runnable {
             int itemId = ItemDAO.addItem(newItem);
 
             if (itemId > 0) {
-                // Tự động tạo phiên đấu giá
                 Timestamp startTime = new Timestamp(System.currentTimeMillis());
                 Timestamp endTime = new Timestamp(System.currentTimeMillis() + (auctionDays * 86400000L));
                 AuctionSession session = new AuctionSession(itemId, startTime, endTime);
@@ -318,9 +315,8 @@ public class ClientHandler implements Runnable {
 
                 if (auctionId > 0) {
                     AuctionParticipantDAO.ensureSellerParticipant(auctionId, currentUser.getId());
-                    System.out.println("✅ Tạo sản phẩm #" + itemId + " và phiên đấu giá #" + auctionId);
+                    System.out.println("Tạo sản phẩm #" + itemId + " và phiên đấu giá #" + auctionId);
 
-                    // Broadcast cập nhật
                     AuctionEvent event = new AuctionEvent(AuctionEvent.ITEM_LIST_UPDATED, auctionId);
                     ClientManager.getInstance().broadcastEvent(event);
 
@@ -377,7 +373,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    // ========================= AUCTIONS =========================
+    // Auctions
 
     private Response handleGetAuctions() {
         List<AuctionSession> auctions = AuctionSessionDAO.getAllAuctions();
@@ -480,7 +476,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    // ========================= BIDDING =========================
+    // Bidding
 
     private Response handlePlaceBid(String payload) {
         if (!hasVerifiedEmail()) {
@@ -514,10 +510,9 @@ public class ClientHandler implements Runnable {
                 if (session != null) {
                     long timeLeft = session.getEndTime().getTime() - System.currentTimeMillis();
                     if (timeLeft > 0 && timeLeft <= 30000) { // 30 giây cuối
-                        // Gia hạn thêm 60 giây
                         Timestamp newEndTime = new Timestamp(session.getEndTime().getTime() + 60000);
                         AuctionSessionDAO.extendEndTime(auctionId, newEndTime);
-                        System.out.println("⏰ Anti-sniping: Phiên #" + auctionId + " gia hạn đến " + newEndTime);
+                        System.out.println("Anti-sniping: Phiên #" + auctionId + " gia hạn đến " + newEndTime);
 
                         AuctionEvent extendEvent = new AuctionEvent(AuctionEvent.AUCTION_EXTENDED, auctionId);
                         extendEvent.setNewEndTime(newEndTime.getTime());
@@ -555,7 +550,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    // ========================= AUTO-BID =========================
+    // Auto-bid
 
     private Response handleSetAutoBid(String payload) {
         if (!hasVerifiedEmail()) {
@@ -610,7 +605,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    // ========================= ACCOUNT =========================
+    // Account
 
     private Response handleGetProfile() {
         ProfileDTO profile = userDAO.getProfile(currentUser.getId());
@@ -783,7 +778,7 @@ public class ClientHandler implements Runnable {
         NotificationDAO.create(notice);
     }
 
-    // ========================= ADMIN =========================
+    // Admin
 
     private Response handleGetAllUsers() {
         List<User> users = userDAO.getAllUsers();
@@ -845,7 +840,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    // ========================= MESSAGING =========================
+    // Messaging
 
     /**
      * Gửi Response (đóng gói trong ServerMessage).
