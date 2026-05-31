@@ -28,8 +28,8 @@
     -home-text: rgba(255, 255, 255, 0.90);
     -home-muted: rgba(255, 255, 255, 0.64);
     -home-muted-2: rgba(255, 255, 255, 0.52);
-    -home-shadow: rgba(0, 0, 0, 0.50);
-    -home-shadow-soft: rgba(0, 0, 0, 0.36);
+    -home-shadow: rgba(12, 2, 4, 0.42);
+    -home-shadow-soft: rgba(12, 2, 4, 0.28);
     -home-red-shadow: rgba(229, 9, 20, 0.36);
     -home-red-shadow-strong: rgba(229, 9, 20, 0.56);
     -home-hero-glow: rgba(229, 9, 20, 0.24);
@@ -86,7 +86,7 @@
     -fx-background-radius: 26;
     -fx-border-color: rgba(255, 255, 255, 0.085);
     -fx-border-radius: 26;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.58), 62, 0.22, 0, 20);
+    -fx-effect: dropshadow(gaussian, rgba(12, 2, 4, 0.48), 62, 0.22, 0, 20);
 }
 
 .dashboard-dark-shell .nav-menu-button,
@@ -113,7 +113,7 @@
     -fx-background-color: rgba(255, 255, 255, 0.035);
     -fx-border-color: rgba(255, 255, 255, 0.10);
     -fx-text-fill: #ffffff;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.42), 20, 0.18, 0, 8);
+    -fx-effect: dropshadow(gaussian, rgba(12, 2, 4, 0.36), 20, 0.18, 0, 8);
 }
 
 .dashboard-dark-shell .round-icon-button:hover {
@@ -142,7 +142,7 @@
 .dashboard-dark-shell .featured-auctions-panel {
     -fx-background-color: linear-gradient(to bottom, rgba(18, 18, 22, 0.90), rgba(8, 8, 10, 0.94));
     -fx-border-color: rgba(255, 255, 255, 0.09);
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.52), 44, 0.18, 0, 16);
+    -fx-effect: dropshadow(gaussian, rgba(12, 2, 4, 0.44), 44, 0.18, 0, 16);
 }
 
 .dashboard-dark-shell .platform-metric-row {
@@ -196,7 +196,7 @@
     -fx-border-color: rgba(255, 255, 255, 0.09);
     -fx-border-radius: 18;
     -fx-padding: 18;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.48), 34, 0.18, 0, 12);
+    -fx-effect: dropshadow(gaussian, rgba(12, 2, 4, 0.40), 34, 0.18, 0, 12);
 }
 
 .dashboard-dark-shell .account-sidebar-button {
@@ -224,7 +224,7 @@
     -fx-border-color: rgba(255, 255, 255, 0.09);
     -fx-border-radius: 18;
     -fx-padding: 22;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.52), 44, 0.18, 0, 16);
+    -fx-effect: dropshadow(gaussian, rgba(12, 2, 4, 0.44), 44, 0.18, 0, 16);
 }
 
 .dashboard-dark-shell .account-body .market-scroll,
@@ -299,7 +299,7 @@
 .dashboard-dark-shell .notification-popover-row {
     -fx-background-color: linear-gradient(to bottom, rgba(18, 18, 22, 0.92), rgba(10, 10, 12, 0.96));
     -fx-border-color: rgba(255, 255, 255, 0.09);
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.34), 26, 0.14, 0, 10);
+    -fx-effect: dropshadow(gaussian, rgba(12, 2, 4, 0.28), 26, 0.14, 0, 10);
 }
 
 .dashboard-dark-shell .notification-row-unread,
@@ -347,8 +347,9 @@
 
 .dashboard-dark-shell .combo-box-popup .list-view,
 .dashboard-dark-shell .context-menu {
-    -fx-background-color: #111116;
+    -fx-background-color: linear-gradient(to bottom, rgba(18, 18, 22, 0.96), rgba(10, 10, 12, 0.98));
     -fx-border-color: rgba(255, 255, 255, 0.12);
+    -fx-effect: dropshadow(gaussian, rgba(12, 2, 4, 0.48), 28, 0.20, 0, 12);
 }
 
 .dashboard-dark-shell .account-tabs .tab,
@@ -431,4 +432,15 @@
 .dashboard-dark-shell .ghost-button:hover {
     -fx-background-color: rgba(229, 9, 20, 0.12);
     -fx-border-color: rgba(255, 38, 53, 0.36);
+}
+
+.dashboard-dark-shell .combo-box-popup .list-cell:hover,
+.dashboard-dark-shell .combo-box-popup .list-cell:selected,
+.dashboard-dark-shell .menu-item:focused,
+.dashboard-dark-shell .menu-item:hover {
+    -fx-background-color: rgba(229, 9, 20, 0.14);
+}
+
+.dashboard-dark-shell .menu-item .label {
+    -fx-text-fill: #ffffff;
 }

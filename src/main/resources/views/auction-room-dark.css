@@ -7,7 +7,7 @@
     -auction-text: rgba(255, 255, 255, 0.88);
     -auction-text-strong: #ffffff;
     -auction-muted: rgba(255, 255, 255, 0.62);
-    -auction-muted-2: rgba(255, 255, 255, 0.42);
+    -auction-muted-2: rgba(255, 255, 255, 0.50);
     -auction-line: rgba(255, 255, 255, 0.09);
     -auction-line-strong: rgba(255, 255, 255, 0.16);
     -auction-red: #ff2635;
@@ -56,7 +56,7 @@
     -fx-min-height: 64;
     -fx-background-color: linear-gradient(to right, rgba(8, 8, 10, 0.98), rgba(14, 14, 18, 0.96));
     -fx-border-color: transparent transparent rgba(255, 255, 255, 0.08) transparent;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.48), 30, 0.18, 0, 10);
+    -fx-effect: dropshadow(gaussian, rgba(12, 2, 4, 0.40), 30, 0.18, 0, 10);
 }
 
 .auction-room-dark .auction-top-exit-button {
@@ -114,7 +114,7 @@
     -fx-background-radius: 18;
     -fx-border-color: rgba(255, 255, 255, 0.09);
     -fx-border-radius: 18;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.54), 38, 0.18, 0, 14);
+    -fx-effect: dropshadow(gaussian, rgba(12, 2, 4, 0.44), 38, 0.18, 0, 14);
 }
 
 .auction-room-dark .product-bid-card {

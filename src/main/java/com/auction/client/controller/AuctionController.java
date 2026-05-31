@@ -5,6 +5,7 @@ import com.auction.client.service.ServerConnector;
 import com.auction.client.ui.RealtimeToast;
 import com.auction.shared.model.AuctionSession;
 import com.auction.shared.model.Bid;
+import com.auction.shared.model.RegularUser;
 import com.auction.shared.network.Response;
 import com.auction.shared.observer.AuctionEvent;
 import com.auction.shared.observer.AuctionEventListener;
@@ -203,9 +204,9 @@ public class AuctionController implements AuctionEventListener {
         this.currentBidCount = Math.max(0, session.getBidCount());
         this.endTimeMillis = session.getEndTime().getTime();
 
-        productNameLabel.setText(fallbackText(session.getItemName(), "iP17"));
+        productNameLabel.setText(fallbackText(session.getItemName(), "Sản phẩm đấu giá"));
         productDetailsLabel.setText(detailsWithBin(fallbackText(session.getItemDescription(),
-                "iP17 – Smartphone cao cấp với hiệu năng vượt trội, dung lượng lớn, camera chuyên nghiệp và thiết kế sang trọng. Bảo hành chính hãng 12 tháng.")));
+                "Phiên đấu giá BidShift. Người bán chưa bổ sung mô tả chi tiết cho sản phẩm này.")));
         roomCodeLabel.setText(roomCode(session));
         minIncrementLabel.setText(formatMoney(minIncrement));
         if (bidIncrementField != null && bidIncrementField.getText().isBlank()) {
@@ -214,7 +215,7 @@ public class AuctionController implements AuctionEventListener {
         loadProductImage(session.getItemImagePath());
         updatePriceLabels();
         updateBidCountLabels();
-        statusLabel.setText("Trạng thái: " + session.getStatus());
+        statusLabel.setText("Trạng thái: " + displayStatus(session.getStatus()));
         applyStatusStyle(session.getStatus());
 
         boolean isActive = "RUNNING".equals(session.getStatus());
@@ -434,7 +435,9 @@ public class AuctionController implements AuctionEventListener {
 
     private void loadBidHistory() {
         bidHistoryList.clear();
-        List<Bid> history = connector.getBidHistory(currentAuctionId);
+        List<Bid> history = Boolean.getBoolean("auction.ui.smokeTest")
+                ? snapshotBidHistory()
+                : connector.getBidHistory(currentAuctionId);
         bidHistoryList.addAll(history);
         currentBidCount = Math.max(currentBidCount, history.size());
         updateBidCountLabels();
@@ -450,6 +453,47 @@ public class AuctionController implements AuctionEventListener {
         if (priceSeries.getData().isEmpty()) {
             seedChartFallback();
         }
+    }
+
+    public void renderVisualSnapshotState(String state) {
+        if (!Boolean.getBoolean("auction.ui.snapshots")) {
+            throw new IllegalStateException("Visual snapshot states are only available with auction.ui.snapshots=true.");
+        }
+        RegularUser user = new RegularUser(77, "bidder1", "", "Nguyễn Minh Anh", "bidder1@bidshift.local");
+        user.setEmailVerified(true);
+        ServerConnector.currentUser = user;
+        setAuctionData(snapshotLongTitleAuction());
+    }
+
+    private AuctionSession snapshotLongTitleAuction() {
+        long now = System.currentTimeMillis();
+        AuctionSession session = new AuctionSession();
+        session.setId(909);
+        session.setItemId(1209);
+        session.setSellerId(42);
+        session.setItemName("Bộ sưu tập đồng hồ cơ cổ Omega Seamaster kèm hộp da và giấy kiểm định dài hạn");
+        session.setItemDescription("Tình trạng hoạt động ổn định, mặt kính đẹp, dây da đã thay mới. Người bán cam kết cho kiểm tra trực tiếp trước khi bàn giao và hỗ trợ vận chuyển bảo hiểm.");
+        session.setItemCategory("OTHER");
+        session.setStatus("RUNNING");
+        session.setStartingPrice(18_000_000);
+        session.setCurrentHighestBid(26_500_000);
+        session.setMinIncrement(500_000);
+        session.setBinPrice(39_000_000);
+        session.setBidCount(4);
+        session.setStartTime(new Timestamp(now - 3_600_000L));
+        session.setEndTime(new Timestamp(now + 7_200_000L));
+        return session;
+    }
+
+    private List<Bid> snapshotBidHistory() {
+        long now = System.currentTimeMillis();
+        Bid first = new Bid(1, currentAuctionId, 501, 19_000_000, new Timestamp(now - 2_400_000L));
+        first.setBidderName("GlobalTrader");
+        Bid second = new Bid(2, currentAuctionId, 77, 23_500_000, new Timestamp(now - 1_200_000L));
+        second.setBidderName("bidder1");
+        Bid third = new Bid(3, currentAuctionId, 604, 26_500_000, new Timestamp(now - 420_000L));
+        third.setBidderName("AlphaRetail");
+        return List.of(third, second, first);
     }
 
     // Realtime event callbacks

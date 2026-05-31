@@ -10,6 +10,7 @@ import com.auction.shared.dto.ProfileDTO;
 import com.auction.shared.model.AuctionSession;
 import com.auction.shared.model.CartItem;
 import com.auction.shared.model.Notification;
+import com.auction.shared.model.RegularUser;
 import com.auction.shared.model.User;
 import com.auction.shared.network.Response;
 import com.auction.shared.observer.AuctionEvent;
@@ -35,6 +36,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
@@ -46,6 +48,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -100,6 +103,10 @@ public class DashboardController implements AuctionEventListener {
     @FXML
     private ImageView brandLogoImage;
     @FXML
+    private MenuButton assetMenuButton;
+    @FXML
+    private MenuButton sessionMenuButton;
+    @FXML
     private Button themeToggleBtn;
     @FXML
     private Button addItemBtn;
@@ -107,6 +114,10 @@ public class DashboardController implements AuctionEventListener {
     private Button notificationBtn;
     @FXML
     private Button adminBtn;
+    @FXML
+    private Button aboutButton;
+    @FXML
+    private Button contactButton;
     @FXML
     private Button accountButton;
 
@@ -127,6 +138,9 @@ public class DashboardController implements AuctionEventListener {
         hideOverlay();
         hideNotificationPopover();
         AiChatWidget.attachTo(rootStack);
+        if (rootStack != null) {
+            rootStack.widthProperty().addListener((obs, oldWidth, newWidth) -> updateHeaderText());
+        }
         setupHeader();
         searchField.textProperty().addListener((obs, oldValue, newValue) -> {
             if (!showingAccountHub)
@@ -143,17 +157,61 @@ public class DashboardController implements AuctionEventListener {
     private void setupHeader() {
         User currentUser = ServerConnector.currentUser;
         boolean loggedIn = currentUser != null;
-        accountButton.setText(
-                loggedIn ? nullToText(currentUser.getUsername(), currentUser.getFullName())
-                        : "Đăng nhập / Đăng ký   →");
         addItemBtn.setVisible(loggedIn);
         addItemBtn.setManaged(loggedIn);
         boolean admin = loggedIn && "ADMIN".equalsIgnoreCase(currentUser.getRole());
         adminBtn.setVisible(admin);
         adminBtn.setManaged(admin);
         updateBrandLogo();
+        updateHeaderText();
         updateThemeToggleButton();
         updateNotificationBadge();
+    }
+
+    private void updateHeaderText() {
+        boolean compact = rootStack != null && rootStack.getWidth() > 0 && rootStack.getWidth() < 1240;
+        if (assetMenuButton != null) {
+            assetMenuButton.setText(compact ? "Tài sản" : "Tài sản đấu giá");
+        }
+        if (sessionMenuButton != null) {
+            sessionMenuButton.setText(compact ? "Phiên" : "Phiên đấu giá");
+            setResponsiveWidth(sessionMenuButton, compact ? 104 : Region.USE_COMPUTED_SIZE);
+        }
+        if (assetMenuButton != null) {
+            setResponsiveWidth(assetMenuButton, compact ? 124 : Region.USE_COMPUTED_SIZE);
+        }
+        if (aboutButton != null) {
+            aboutButton.setVisible(!compact);
+            aboutButton.setManaged(!compact);
+        }
+        if (contactButton != null) {
+            contactButton.setVisible(!compact);
+            contactButton.setManaged(!compact);
+        }
+        if (addItemBtn != null) {
+            addItemBtn.setText(compact ? "Bán" : "Đăng bán");
+            setResponsiveWidth(addItemBtn, compact ? 68 : Region.USE_COMPUTED_SIZE);
+        }
+        if (accountButton != null) {
+            User currentUser = ServerConnector.currentUser;
+            accountButton.setText(currentUser == null
+                    ? "Đăng nhập"
+                    : nullToText(currentUser.getUsername(), currentUser.getFullName()));
+            setResponsiveWidth(accountButton, compact ? 110 : Region.USE_COMPUTED_SIZE);
+        }
+        if (brandLogoImage != null) {
+            brandLogoImage.setFitWidth(compact ? 184 : 204);
+            brandLogoImage.setFitHeight(compact ? 48 : 54);
+        }
+    }
+
+    private void setResponsiveWidth(Region node, double width) {
+        if (node == null) {
+            return;
+        }
+        node.setMinWidth(width);
+        node.setPrefWidth(width);
+        node.setMaxWidth(width);
     }
 
     private void updateThemeToggleButton() {
@@ -953,6 +1011,10 @@ public class DashboardController implements AuctionEventListener {
     }
 
     private void renderProfile(StackPane body) {
+        if (Boolean.getBoolean("auction.ui.smokeTest")) {
+            renderProfileLoaded(body, snapshotProfile());
+            return;
+        }
         loadAccountData(body, "Đang tải hồ sơ cá nhân...", connector::getProfile,
                 profile -> renderProfileLoaded(body, profile));
     }
@@ -997,6 +1059,7 @@ public class DashboardController implements AuctionEventListener {
         GridPane grid = new GridPane();
         grid.setHgap(14);
         grid.setVgap(12);
+        configureEqualColumns(grid, 3);
         grid.add(fieldBlock("Họ và tên", fullName), 0, 0);
         grid.add(fieldBlock("Tên đăng nhập", username), 1, 0);
         grid.add(fieldBlock("Email", email), 2, 0);
@@ -1111,6 +1174,10 @@ public class DashboardController implements AuctionEventListener {
     }
 
     private void renderPayment(StackPane body) {
+        if (Boolean.getBoolean("auction.ui.smokeTest")) {
+            renderPaymentLoaded(body, snapshotPaymentProfile());
+            return;
+        }
         loadAccountData(body, "Đang tải phương thức thanh toán...", connector::getPaymentProfile,
                 payment -> renderPaymentLoaded(body, payment));
     }
@@ -1132,6 +1199,7 @@ public class DashboardController implements AuctionEventListener {
         GridPane grid = new GridPane();
         grid.setHgap(14);
         grid.setVgap(12);
+        configureEqualColumns(grid, 2);
         grid.add(fieldBlock("STK", account), 0, 0);
         grid.add(fieldBlock("Tên ngân hàng", bank), 1, 0);
         grid.add(fieldBlock("Ngày hết hạn", expiry), 0, 1);
@@ -1172,6 +1240,10 @@ public class DashboardController implements AuctionEventListener {
     }
 
     private void renderNotifications(StackPane body) {
+        if (Boolean.getBoolean("auction.ui.smokeTest")) {
+            renderNotificationsLoaded(body, snapshotNotifications());
+            return;
+        }
         loadAccountData(body, "Đang tải thông báo...", connector::getNotifications,
                 notifications -> renderNotificationsLoaded(body, notifications));
     }
@@ -1347,6 +1419,10 @@ public class DashboardController implements AuctionEventListener {
     }
 
     private void renderSellerOrders(StackPane body) {
+        if (Boolean.getBoolean("auction.ui.smokeTest")) {
+            renderSellerOrdersLoaded(body, snapshotSellerOrders());
+            return;
+        }
         loadAccountData(body, "Đang tải đơn bán...", connector::getSellerOrders,
                 orders -> renderSellerOrdersLoaded(body, orders));
     }
@@ -1372,7 +1448,7 @@ public class DashboardController implements AuctionEventListener {
         StackPane imageWrapper = new StackPane();
         imageWrapper.getStyleClass().add("cart-image-wrapper");
         ImageView image = createImageView(item.getImagePath(), 82, 82);
-        imageWrapper.getChildren().add(image != null ? image : imagePreviewPlaceholder("Chưa có ảnh"));
+        imageWrapper.getChildren().add(image != null ? image : imagePreviewPlaceholder("BID"));
 
         Label name = new Label(nullToText(item.getItemName(), "Sản phẩm"));
         name.setWrapText(true);
@@ -1446,6 +1522,11 @@ public class DashboardController implements AuctionEventListener {
     }
 
     private void renderCart(StackPane body) {
+        if (Boolean.getBoolean("auction.ui.smokeTest") && preloadedCartItems != null) {
+            body.getChildren().setAll(wrapScroll(accountPage("Giỏ hàng", cartContent())));
+            preloadedCartItems = null;
+            return;
+        }
         if (ServerConnector.currentUser != null) {
             loadAccountData(body, "Đang tải giỏ hàng...", connector::getCart, items -> {
                 preloadedCartItems = items;
@@ -1497,7 +1578,7 @@ public class DashboardController implements AuctionEventListener {
             StackPane imageWrapper = new StackPane();
             imageWrapper.getStyleClass().add("cart-image-wrapper");
             ImageView image = createImageView(item.getImagePath(), 82, 82);
-            imageWrapper.getChildren().add(image != null ? image : imagePreviewPlaceholder("Chưa có ảnh"));
+            imageWrapper.getChildren().add(image != null ? image : imagePreviewPlaceholder("BID"));
 
             Label name = new Label(nullToText(item.getItemName(), "Sản phẩm"));
             name.getStyleClass().add("cart-title");
@@ -1571,8 +1652,8 @@ public class DashboardController implements AuctionEventListener {
 
     private void showCheckoutAddressStep(CheckoutContext context) {
         ComboBox<String> method = comboBox(List.of(
-                "COD - Thanh toán khi nhận hàng",
-                "ATM Payment - Chuyển khoản ngân hàng"
+                "COD - Nhận hàng",
+                "ATM Payment"
         ), context.paymentDisplay);
         TextField phone = new TextField(context.shippingPhone);
         phone.setPromptText("Số điện thoại giao hàng");
@@ -1593,6 +1674,7 @@ public class DashboardController implements AuctionEventListener {
         GridPane grid = new GridPane();
         grid.setHgap(14);
         grid.setVgap(12);
+        configureEqualColumns(grid, 2);
         grid.getStyleClass().add("checkout-grid");
         grid.add(fieldBlock("Phương thức thanh toán", method), 0, 0);
         grid.add(fieldBlock("Số điện thoại giao hàng", phone), 1, 0);
@@ -1601,8 +1683,10 @@ public class DashboardController implements AuctionEventListener {
         grid.add(fieldBlock("Xã/Phường", ward), 0, 2);
         grid.add(fieldBlock("Địa chỉ nhà", address), 1, 2);
 
+        Label help = checkoutHelpLabel("Địa chỉ tại bước này chỉ áp dụng cho đơn đang thanh toán; hồ sơ cá nhân của bạn không bị ghi đè.");
+        Label validation = checkoutInlineMessage();
         VBox form = new VBox(14, checkoutStepHeader(1, isBankTransfer(context.paymentCode)),
-                checkoutItemsSummary(context), grid);
+                checkoutItemsSummary(context), help, grid, validation);
         form.getStyleClass().add("checkout-form");
         Button next = new Button("Tiếp tục");
         next.getStyleClass().add("primary-button");
@@ -1617,13 +1701,18 @@ public class DashboardController implements AuctionEventListener {
             context.fullAddress = buildCheckoutAddress(context.homeAddress, context.ward, context.district, context.city);
 
             if (isBlank(context.shippingPhone)) {
-                showToast("Vui lòng nhập số điện thoại hợp lệ.", false);
+                showInlineMessage(validation, "Vui lòng nhập số điện thoại hợp lệ. BidShift nhận 0xxxxxxxxx hoặc +84xxxxxxxxx.");
+                phone.requestFocus();
                 return;
             }
             if (isBlank(context.homeAddress) || isBlank(context.city) || isBlank(context.district) || isBlank(context.ward)) {
-                showToast("Vui lòng nhập đủ địa chỉ nhà, xã/phường, quận/huyện và tỉnh/thành phố.", false);
+                showInlineMessage(validation, "Vui lòng nhập đủ địa chỉ nhà, xã/phường, quận/huyện và tỉnh/thành phố.");
+                if (isBlank(context.homeAddress)) {
+                    address.requestFocus();
+                }
                 return;
             }
+            hideInlineMessage(validation);
             if (isBankTransfer(context.paymentCode)) {
                 showCheckoutBankStep(context);
             } else {
@@ -1644,6 +1733,7 @@ public class DashboardController implements AuctionEventListener {
         GridPane grid = new GridPane();
         grid.setHgap(14);
         grid.setVgap(12);
+        configureEqualColumns(grid, 2);
         grid.getStyleClass().add("checkout-grid");
         grid.add(fieldBlock("Mã số thẻ / STK ngân hàng", account), 0, 0);
         grid.add(fieldBlock("Tên chủ tài khoản", owner), 1, 0);
@@ -1651,7 +1741,9 @@ public class DashboardController implements AuctionEventListener {
         Label note = new Label("Thông tin ATM sẽ được cập nhật vào hồ sơ thanh toán trước khi xuất hóa đơn.");
         note.setWrapText(true);
         note.getStyleClass().add("account-note");
-        VBox form = new VBox(14, checkoutStepHeader(2, true), checkoutItemsSummary(context), grid, note, confirm);
+        Label validation = checkoutInlineMessage();
+        VBox form = new VBox(14, checkoutStepHeader(2, true), checkoutItemsSummary(context), grid, note, confirm,
+                validation);
         form.getStyleClass().add("checkout-form");
 
         Button back = new Button("Quay lại địa chỉ");
@@ -1663,13 +1755,19 @@ public class DashboardController implements AuctionEventListener {
             context.bankAccountNumber = safeText(account.getText());
             context.accountOwnerName = safeText(owner.getText());
             if (isBlank(context.bankAccountNumber) || isBlank(context.accountOwnerName)) {
-                showToast("Vui lòng nhập mã số thẻ/STK và tên chủ tài khoản.", false);
+                showInlineMessage(validation, "Vui lòng nhập mã số thẻ/STK và tên chủ tài khoản.");
+                if (isBlank(context.bankAccountNumber)) {
+                    account.requestFocus();
+                } else {
+                    owner.requestFocus();
+                }
                 return;
             }
             if (!confirm.isSelected()) {
-                showToast("Bạn cần xác nhận thông tin ATM trước khi tiếp tục.", false);
+                showInlineMessage(validation, "Bạn cần tick xác nhận thông tin ATM trước khi tiếp tục.");
                 return;
             }
+            hideInlineMessage(validation);
             PaymentProfileDTO profile = context.paymentProfile == null ? new PaymentProfileDTO() : context.paymentProfile;
             if (profile.getUserId() <= 0 && ServerConnector.currentUser != null) {
                 profile.setUserId(ServerConnector.currentUser.getId());
@@ -1772,6 +1870,7 @@ public class DashboardController implements AuctionEventListener {
         GridPane grid = new GridPane();
         grid.setHgap(14);
         grid.setVgap(12);
+        configureEqualColumns(grid, 2);
         grid.getStyleClass().add("checkout-invoice-grid");
         grid.add(invoiceField("Phương thức", displayPaymentMethod(context.paymentCode)), 0, 0);
         grid.add(invoiceField("Số điện thoại", context.shippingPhone), 1, 0);
@@ -1803,11 +1902,174 @@ public class DashboardController implements AuctionEventListener {
         return "BANK_TRANSFER".equals(paymentCodeFromDisplay(paymentCode));
     }
 
+    public void renderVisualSnapshotState(String state) {
+        if (!Boolean.getBoolean("auction.ui.snapshots")) {
+            throw new IllegalStateException("Visual snapshot states are only available with auction.ui.snapshots=true.");
+        }
+        ServerConnector.currentUser = snapshotUser();
+        setupHeader();
+        String normalizedState = nullToText(state, "").toLowerCase(Locale.ROOT);
+        switch (normalizedState) {
+            case "home-auth" -> renderHome();
+            case "account-profile" -> showAccountHub("profile");
+            case "account-cart" -> {
+                preloadedCartItems = snapshotCartItems();
+                showAccountHub("cart");
+            }
+            case "account-notifications" -> showAccountHub("notifications");
+            case "seller-orders" -> showAccountHub("seller-orders");
+            case "add-item" -> {
+                renderHome();
+                handleOpenAddForm();
+            }
+            case "checkout-address" -> {
+                renderHome();
+                showCheckoutAddressStep(snapshotCheckoutContext());
+            }
+            case "checkout-atm" -> {
+                renderHome();
+                showCheckoutBankStep(snapshotCheckoutContext());
+            }
+            case "checkout-invoice" -> {
+                renderHome();
+                showCheckoutInvoiceStep(snapshotCheckoutContext());
+            }
+            default -> renderHome();
+        }
+    }
+
+    private User snapshotUser() {
+        RegularUser user = new RegularUser(77, "bidder1", "", "Nguyễn Minh Anh", "bidder1@bidshift.local");
+        user.setEmailVerified(true);
+        user.setLegitPoints(98);
+        user.setPhone("0912345678");
+        user.setAddress("24 Tràng Tiền");
+        user.setCity("Thành phố Hà Nội");
+        user.setDistrict("Quận Hoàn Kiếm");
+        user.setWard("Phường Tràng Tiền");
+        user.setCitizenId("001203045678");
+        user.setGender("Nam");
+        user.setBirthDate("2001-04-12");
+        return user;
+    }
+
+    private ProfileDTO snapshotProfile() {
+        ProfileDTO profile = new ProfileDTO();
+        User user = ServerConnector.currentUser == null ? snapshotUser() : ServerConnector.currentUser;
+        profile.setId(user.getId());
+        profile.setUsername(user.getUsername());
+        profile.setEmail(user.getEmail());
+        profile.setEmailVerified(user.isEmailVerified());
+        profile.setFullName(user.getFullName());
+        profile.setRole(user.getRole());
+        profile.setLegitPoints(user.getLegitPoints());
+        profile.setPhone(user.getPhone());
+        profile.setAddress(user.getAddress());
+        profile.setCity(user.getCity());
+        profile.setDistrict(user.getDistrict());
+        profile.setWard(user.getWard());
+        profile.setCitizenId(user.getCitizenId());
+        profile.setGender(user.getGender());
+        profile.setBirthDate(user.getBirthDate());
+        return profile;
+    }
+
+    private PaymentProfileDTO snapshotPaymentProfile() {
+        PaymentProfileDTO payment = new PaymentProfileDTO();
+        payment.setUserId(ServerConnector.currentUser == null ? 77 : ServerConnector.currentUser.getId());
+        payment.setBankAccountNumber("9704 1234 5678 9012");
+        payment.setBankName("BidShift Demo Bank");
+        payment.setCardExpiry("12/29");
+        payment.setAccountOwnerName("NGUYEN MINH ANH");
+        return payment;
+    }
+
+    private List<CartItem> snapshotCartItems() {
+        CartItem phone = new CartItem();
+        phone.setId(501);
+        phone.setItemName("Máy ảnh mirrorless Fujifilm X-T5 kèm ống kính 18-55mm");
+        phone.setItemDescription("Tình trạng đẹp, đã kiểm tra cảm biến và phụ kiện cơ bản.");
+        phone.setItemCategory("ELECTRONICS");
+        phone.setWinningPrice(34_000_000);
+        phone.setStatus("PENDING");
+        phone.setPaymentDueAt(new Timestamp(System.currentTimeMillis() + 86_400_000L));
+
+        CartItem art = new CartItem();
+        art.setId(502);
+        art.setItemName("Tranh sơn dầu phố cổ Hà Nội khổ lớn");
+        art.setItemDescription("Đóng khung gỗ, giao hàng cần xác nhận địa chỉ kỹ trước khi vận chuyển.");
+        art.setItemCategory("ART");
+        art.setWinningPrice(12_500_000);
+        art.setStatus("PAID");
+        art.setPaymentMethod("BANK_TRANSFER");
+        art.setDeliveryStatus("SHIPPING");
+        art.setShippingAddress("24 Tràng Tiền, Phường Tràng Tiền, Quận Hoàn Kiếm, Thành phố Hà Nội");
+        art.setShippingPhone("0912345678");
+        art.setTrackingCode("BID-2026-0529");
+        art.setPaymentDueAt(new Timestamp(System.currentTimeMillis() + 172_800_000L));
+        return List.of(phone, art);
+    }
+
+    private List<CartItem> snapshotSellerOrders() {
+        CartItem waiting = new CartItem();
+        waiting.setId(701);
+        waiting.setItemName("Bộ bàn phím cơ custom nhôm CNC phiên bản giới hạn");
+        waiting.setBidderName("Nguyễn Minh Anh");
+        waiting.setWinningPrice(8_750_000);
+        waiting.setPaymentMethod("COD");
+        waiting.setDeliveryStatus("WAITING_SHIPMENT");
+        waiting.setShippingAddress("24 Tràng Tiền, Phường Tràng Tiền, Quận Hoàn Kiếm, Thành phố Hà Nội");
+        waiting.setShippingPhone("0912345678");
+
+        CartItem shipping = new CartItem();
+        shipping.setId(702);
+        shipping.setItemName("Tranh sơn dầu phố cổ Hà Nội khổ lớn");
+        shipping.setBidderName("Trần Gia Bảo");
+        shipping.setWinningPrice(12_500_000);
+        shipping.setPaymentMethod("BANK_TRANSFER");
+        shipping.setDeliveryStatus("SHIPPING");
+        shipping.setTrackingCode("BID-2026-0529");
+        shipping.setShippingAddress("88 Nguyễn Huệ, Phường Bến Nghé, Quận 1, Thành phố Hồ Chí Minh");
+        shipping.setShippingPhone("0901234567");
+        return List.of(waiting, shipping);
+    }
+
+    private List<Notification> snapshotNotifications() {
+        Notification win = new Notification(77, "Bạn đã thắng đấu giá",
+                "Máy ảnh Fujifilm X-T5 đã được chuyển vào giỏ hàng. Vui lòng thanh toán trước hạn để giữ điểm uy tín.",
+                "AUCTION_WON");
+        win.setCreatedAt(new Timestamp(System.currentTimeMillis() - 600_000L));
+        win.setRead(false);
+
+        Notification shipping = new Notification(77, "Đơn hàng đang giao",
+                "Người bán đã cập nhật mã vận đơn BID-2026-0529 cho đơn tranh sơn dầu phố cổ Hà Nội.",
+                "DELIVERY_UPDATED");
+        shipping.setCreatedAt(new Timestamp(System.currentTimeMillis() - 3_600_000L));
+        shipping.setRead(true);
+
+        Notification cancelled = new Notification(77, "Phiên đã hủy",
+                "Phiên đấu giá bộ sưu tập postcard cũ đã bị hủy. Bạn có thể đăng lại sản phẩm sau khi chỉnh mô tả.",
+                "SELLER_CANCELLED");
+        cancelled.setReferenceId(991);
+        cancelled.setCreatedAt(new Timestamp(System.currentTimeMillis() - 86_400_000L));
+        cancelled.setRead(false);
+        return List.of(win, shipping, cancelled);
+    }
+
+    private CheckoutContext snapshotCheckoutContext() {
+        CheckoutContext context = new CheckoutContext(List.of(snapshotCartItems().get(0)));
+        context.paymentDisplay = "ATM Payment";
+        context.paymentCode = "BANK_TRANSFER";
+        context.applyProfile(snapshotProfile());
+        context.applyPaymentProfile(snapshotPaymentProfile());
+        return context;
+    }
+
     private record CheckoutLoadData(ProfileDTO profile, PaymentProfileDTO payment) {}
 
     private static class CheckoutContext {
         private final List<CartItem> items;
-        private String paymentDisplay = "COD - Thanh toán khi nhận hàng";
+        private String paymentDisplay = "COD - Nhận hàng";
         private String paymentCode = "COD";
         private String shippingPhone = "";
         private String city = "";
@@ -2146,9 +2408,52 @@ public class DashboardController implements AuctionEventListener {
     private VBox fieldBlock(String label, Node field) {
         Label text = new Label(label);
         text.getStyleClass().add("input-label");
+        if (field instanceof Region region) {
+            region.setMaxWidth(Double.MAX_VALUE);
+        }
         VBox box = new VBox(6, text, field);
+        box.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(box, Priority.ALWAYS);
         return box;
+    }
+
+    private void configureEqualColumns(GridPane grid, int columns) {
+        grid.setMaxWidth(Double.MAX_VALUE);
+        grid.getColumnConstraints().clear();
+        for (int i = 0; i < columns; i++) {
+            ColumnConstraints constraints = new ColumnConstraints();
+            constraints.setPercentWidth(100.0 / columns);
+            constraints.setHgrow(Priority.ALWAYS);
+            grid.getColumnConstraints().add(constraints);
+        }
+    }
+
+    private Label checkoutHelpLabel(String text) {
+        Label label = new Label(text);
+        label.setWrapText(true);
+        label.getStyleClass().addAll("inline-message", "checkout-help");
+        return label;
+    }
+
+    private Label checkoutInlineMessage() {
+        Label label = new Label();
+        label.setWrapText(true);
+        label.getStyleClass().addAll("inline-message", "inline-message-error", "checkout-inline-error");
+        label.setManaged(false);
+        label.setVisible(false);
+        return label;
+    }
+
+    private void showInlineMessage(Label label, String message) {
+        label.setText(message);
+        label.setManaged(true);
+        label.setVisible(true);
+    }
+
+    private void hideInlineMessage(Label label) {
+        label.setText("");
+        label.setManaged(false);
+        label.setVisible(false);
     }
 
     private ComboBox<String> comboBox(List<String> options, String selectedValue) {

@@ -20,6 +20,22 @@ mvn clean package
 
 File JAR dùng để nộp bài nằm tại `release/online-auction.jar`.
 
+## Kiểm thử UI nhanh
+
+Chạy toàn bộ unit/smoke test mặc định:
+
+```powershell
+mvn test
+```
+
+JavaFX visual snapshot là test opt-in, dùng khi cần kiểm tra nhanh layout các màn chính ở kích thước `1366 x 768`:
+
+```powershell
+mvn "-Dtest=JavaFxVisualSnapshotTest" "-Dauction.ui.snapshots=true" test
+```
+
+Ảnh sẽ được xuất vào `target/ui-snapshots`. Bộ snapshot hiện gồm login, register, dashboard light/dark, account profile, giỏ hàng, thông báo, đơn bán, đăng bán, checkout address/ATM/invoice, auction room light/dark, auction room với tên dài và admin panel. Đây là bước hỗ trợ visual QA; checkout thật vẫn cần smoke thủ công với tài khoản demo và dữ liệu server/DB.
+
 ## Cấu hình runtime
 
 Server cần các biến môi trường hoặc system properties sau khi chạy ngoài IDE:

@@ -15,10 +15,10 @@
         <BorderPane fx:id="dashboardPane" styleClass="market-root">
             <top>
                 <VBox spacing="0" styleClass="market-header">
-                    <HBox alignment="CENTER_LEFT" spacing="20" styleClass="bidshift-topbar">
+                    <HBox alignment="CENTER_LEFT" spacing="14" styleClass="bidshift-topbar">
                         <padding><Insets bottom="12" left="26" right="24" top="12" /></padding>
                         <HBox alignment="CENTER_LEFT" onMouseClicked="#handleHome" spacing="10" styleClass="brand-logo-shell">
-                            <ImageView fx:id="brandLogoImage" fitHeight="54" fitWidth="218" pickOnBounds="true" preserveRatio="true" styleClass="brand-logo-image">
+                            <ImageView fx:id="brandLogoImage" fitHeight="54" fitWidth="204" pickOnBounds="true" preserveRatio="true" styleClass="brand-logo-image">
                                 <image>
                                     <Image url="@../assets/bidshift-logo-dark.png" />
                                 </image>
@@ -41,15 +41,15 @@
                                 <MenuItem onAction="#handleEndedAuctions" text="Đã kết thúc" />
                             </items>
                         </MenuButton>
-                        <Button onAction="#handleAbout" styleClass="nav-link-button" text="Giới thiệu" />
-                        <Button onAction="#handleContact" styleClass="nav-link-button" text="Liên hệ" />
+                        <Button fx:id="aboutButton" onAction="#handleAbout" styleClass="nav-link-button" text="Giới thiệu" />
+                        <Button fx:id="contactButton" onAction="#handleContact" styleClass="nav-link-button" text="Liên hệ" />
                         <Region HBox.hgrow="ALWAYS" />
                         <Button fx:id="themeToggleBtn" onAction="#handleThemeToggle" styleClass="round-icon-button" text="☀" />
                         <Button fx:id="searchToggleBtn" onAction="#handleToggleSearch" styleClass="round-icon-button" text="⌕" />
                         <Button fx:id="notificationBtn" onAction="#handleNotifications" styleClass="round-icon-button" text="🔔" />
                         <Button fx:id="addItemBtn" onAction="#handleOpenAddForm" styleClass="primary-button" text="Đăng bán" />
                         <Button fx:id="adminBtn" onAction="#handleOpenAdmin" styleClass="ghost-button" text="Quản trị" />
-                        <Button fx:id="accountButton" onAction="#handleAccountAction" styleClass="account-button" text="Đăng nhập / Đăng ký  →" />
+                        <Button fx:id="accountButton" onAction="#handleAccountAction" styleClass="account-button" text="Đăng nhập" />
                     </HBox>
                     <HBox fx:id="searchBar" alignment="CENTER_LEFT" managed="false" spacing="10" styleClass="search-dropbar" visible="false">
                         <padding><Insets bottom="14" left="26" right="26" top="0" /></padding>
