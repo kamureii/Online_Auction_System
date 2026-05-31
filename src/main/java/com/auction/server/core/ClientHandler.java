@@ -296,10 +296,25 @@ public class ClientHandler implements Runnable {
             double startingPrice = obj.get("startingPrice").getAsDouble();
             double minIncrement = obj.get("minIncrement").getAsDouble();
             int sellerId = currentUser.getId();
-            int auctionDays = obj.has("auctionDays") ? obj.get("auctionDays").getAsInt() : 1;
+            int auctionHours = obj.has("auctionHours")
+                    ? obj.get("auctionHours").getAsInt()
+                    : obj.has("auctionDays") ? obj.get("auctionDays").getAsInt() * 24 : 24;
+            double binPrice = obj.has("binPrice") && !obj.get("binPrice").isJsonNull()
+                    ? obj.get("binPrice").getAsDouble()
+                    : 0;
             String imagePath = obj.has("imagePath") && !obj.get("imagePath").isJsonNull()
                     ? obj.get("imagePath").getAsString()
                     : "";
+
+            if (auctionHours < 1 || auctionHours > 720) {
+                return new Response("ERROR", "Thời hạn đấu giá phải từ 1 đến 720 giờ.", null);
+            }
+            if (!Double.isFinite(binPrice) || binPrice < 0) {
+                return new Response("ERROR", "Giá BIN không hợp lệ.", null);
+            }
+            if (binPrice > 0 && binPrice < startingPrice + minIncrement) {
+                return new Response("ERROR", "Giá BIN phải lớn hơn hoặc bằng giá đặt hợp lệ đầu tiên.", null);
+            }
 
             Item newItem = ItemFactory.createNewItem(category, name, description, startingPrice, minIncrement, sellerId);
             newItem.setImagePath(imagePath);
@@ -307,10 +322,11 @@ public class ClientHandler implements Runnable {
 
             if (itemId > 0) {
                 Timestamp startTime = new Timestamp(System.currentTimeMillis());
-                Timestamp endTime = new Timestamp(System.currentTimeMillis() + (auctionDays * 86400000L));
+                Timestamp endTime = new Timestamp(System.currentTimeMillis() + (auctionHours * 3600000L));
                 AuctionSession session = new AuctionSession(itemId, startTime, endTime);
                 session.setStatus("OPEN");
                 session.setCurrentHighestBid(startingPrice);
+                session.setBinPrice(binPrice);
                 int auctionId = AuctionSessionDAO.createAuction(session);
 
                 if (auctionId > 0) {
@@ -504,19 +520,20 @@ public class ClientHandler implements Runnable {
             if (result.isSuccess()) {
                 AuctionParticipantDAO.ensureBidderParticipant(auctionId, userId);
                 String bidderName = userDAO.getUsernameById(userId);
+                if (!result.isBinTriggered()) {
+                    // Anti-sniping: kiểm tra bid trong 30 giây cuối
+                    AuctionSession session = AuctionSessionDAO.getAuctionById(auctionId);
+                    if (session != null) {
+                        boolean shouldExtend = AuctionTimingRules.shouldExtendForAntiSniping(session.getEndTime(), System.currentTimeMillis());
+                        if (shouldExtend) {
+                            Timestamp newEndTime = AuctionTimingRules.extendedEndTime(session.getEndTime());
+                            AuctionSessionDAO.extendEndTime(auctionId, newEndTime);
+                            System.out.println("Anti-sniping: Phiên #" + auctionId + " gia hạn đến " + newEndTime);
 
-                // Anti-sniping: kiểm tra bid trong 30 giây cuối
-                AuctionSession session = AuctionSessionDAO.getAuctionById(auctionId);
-                if (session != null) {
-                    long timeLeft = session.getEndTime().getTime() - System.currentTimeMillis();
-                    if (timeLeft > 0 && timeLeft <= 30000) { // 30 giây cuối
-                        Timestamp newEndTime = new Timestamp(session.getEndTime().getTime() + 60000);
-                        AuctionSessionDAO.extendEndTime(auctionId, newEndTime);
-                        System.out.println("Anti-sniping: Phiên #" + auctionId + " gia hạn đến " + newEndTime);
-
-                        AuctionEvent extendEvent = new AuctionEvent(AuctionEvent.AUCTION_EXTENDED, auctionId);
-                        extendEvent.setNewEndTime(newEndTime.getTime());
-                        ClientManager.getInstance().broadcastEvent(extendEvent);
+                            AuctionEvent extendEvent = new AuctionEvent(AuctionEvent.AUCTION_EXTENDED, auctionId);
+                            extendEvent.setNewEndTime(newEndTime.getTime());
+                            ClientManager.getInstance().broadcastEvent(extendEvent);
+                        }
                     }
                 }
 
@@ -528,6 +545,14 @@ public class ClientHandler implements Runnable {
                 bidEvent.setItemName(result.getItemName());
                 bidEvent.setSellerId(result.getSellerId());
                 ClientManager.getInstance().broadcastEvent(bidEvent);
+
+                if (result.isBinTriggered()) {
+                    AuctionSession completedSession = AuctionSessionDAO.getAuctionById(auctionId);
+                    if (completedSession != null) {
+                        AuctionFinalizer.finishAuction(completedSession);
+                    }
+                    return new Response("SUCCESS", "Đặt giá thành công! Giá BIN đã được kích hoạt.", null);
+                }
 
                 // Xử lý auto-bid của các đối thủ
                 AutoBidManager.processAutoBids(auctionId, userId, result.getBidAmount());
