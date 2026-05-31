@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS auction_sessions (
     payment_due_at DATETIME DEFAULT NULL,
     highlighted_until DATETIME DEFAULT NULL,
     current_highest_bid DECIMAL(15, 2) DEFAULT 0.00,
+    bin_price DECIMAL(15, 2) DEFAULT NULL,
     winner_id INT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
@@ -161,12 +162,12 @@ VALUES
     (3, 2, 'Honda Civic 2024', 'Xe Honda Civic RS 2024 moi 100%', 'VEHICLE', 800000000, 5000000, 800000000)
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
-INSERT INTO auction_sessions (id, item_id, start_time, end_time, status, current_highest_bid)
+INSERT INTO auction_sessions (id, item_id, start_time, end_time, status, current_highest_bid, bin_price)
 VALUES
-    (1, 1, NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), 'RUNNING', 25000000),
-    (2, 2, NOW(), DATE_ADD(NOW(), INTERVAL 2 DAY), 'RUNNING', 5000000),
-    (3, 3, NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY), 'RUNNING', 800000000)
-ON DUPLICATE KEY UPDATE current_highest_bid = VALUES(current_highest_bid);
+    (1, 1, NOW(), DATE_ADD(NOW(), INTERVAL 24 HOUR), 'RUNNING', 25000000, 30000000),
+    (2, 2, NOW(), DATE_ADD(NOW(), INTERVAL 48 HOUR), 'RUNNING', 5000000, 8000000),
+    (3, 3, NOW(), DATE_ADD(NOW(), INTERVAL 72 HOUR), 'RUNNING', 800000000, 900000000)
+ON DUPLICATE KEY UPDATE current_highest_bid = VALUES(current_highest_bid), bin_price = VALUES(bin_price);
 
 INSERT INTO auction_participants (auction_id, user_id, room_role)
 SELECT a.id, i.seller_id, 'SELLER'

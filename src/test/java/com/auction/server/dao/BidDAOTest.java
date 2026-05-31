@@ -49,4 +49,13 @@ class BidDAOTest {
         assertEquals("SUCCESS", BidDAO.validateBid("RUNNING", future, 1_000, 100, 1_100,
                 System.currentTimeMillis()));
     }
+
+    @Test
+    void shouldTriggerBinOnlyWhenBidReachesConfiguredBin() {
+        assertEquals(true, BidDAO.shouldTriggerBin(2_000, 2_000));
+        assertEquals(true, BidDAO.shouldTriggerBin(2_000, 2_500));
+        assertEquals(false, BidDAO.shouldTriggerBin(2_000, 1_999));
+        assertEquals(false, BidDAO.shouldTriggerBin(0, 2_000));
+        assertEquals(false, BidDAO.shouldTriggerBin(Double.NaN, 2_000));
+    }
 }

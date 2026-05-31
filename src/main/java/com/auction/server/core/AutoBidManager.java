@@ -85,6 +85,14 @@ public class AutoBidManager {
             event.setSellerId(result.getSellerId());
             ClientManager.getInstance().broadcastEvent(event);
 
+            if (result.isBinTriggered()) {
+                AuctionSession completedSession = AuctionSessionDAO.getAuctionById(auctionId);
+                if (completedSession != null) {
+                    AuctionFinalizer.finishAuction(completedSession);
+                }
+                return;
+            }
+
             currentBidderId = candidate.getUserId();
             currentPrice = result.getBidAmount();
         }

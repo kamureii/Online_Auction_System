@@ -32,10 +32,13 @@ public class BidDAO {
         private final int itemId;
         private final int sellerId;
         private final String itemName;
+        private final boolean binTriggered;
+        private final double binPrice;
 
         private PlaceBidResult(boolean success, BidFailureReason reason, String message,
                                double bidAmount, double previousHighestBid, double minRequired,
-                               int itemId, int sellerId, String itemName) {
+                               int itemId, int sellerId, String itemName,
+                               boolean binTriggered, double binPrice) {
             this.success = success;
             this.reason = reason;
             this.message = message;
@@ -45,19 +48,24 @@ public class BidDAO {
             this.itemId = itemId;
             this.sellerId = sellerId;
             this.itemName = itemName;
+            this.binTriggered = binTriggered;
+            this.binPrice = binPrice;
         }
 
         static PlaceBidResult success(double bidAmount, double previousHighestBid,
-                                      int itemId, int sellerId, String itemName) {
+                                      int itemId, int sellerId, String itemName,
+                                      boolean binTriggered, double binPrice) {
             return new PlaceBidResult(true, BidFailureReason.NONE, "SUCCESS",
-                    bidAmount, previousHighestBid, 0, itemId, sellerId, itemName);
+                    bidAmount, previousHighestBid, 0, itemId, sellerId, itemName,
+                    binTriggered, binPrice);
         }
 
         static PlaceBidResult failure(BidFailureReason reason, String message,
                                       double previousHighestBid, double minRequired,
                                       int itemId, int sellerId, String itemName) {
             return new PlaceBidResult(false, reason, message,
-                    0, previousHighestBid, minRequired, itemId, sellerId, itemName);
+                    0, previousHighestBid, minRequired, itemId, sellerId, itemName,
+                    false, 0);
         }
 
         public boolean isSuccess() { return success; }
@@ -69,6 +77,8 @@ public class BidDAO {
         public int getItemId() { return itemId; }
         public int getSellerId() { return sellerId; }
         public String getItemName() { return itemName; }
+        public boolean isBinTriggered() { return binTriggered; }
+        public double getBinPrice() { return binPrice; }
     }
 
     public static String placeBid(int auctionId, int userId, double bidAmount) {
@@ -76,11 +86,12 @@ public class BidDAO {
     }
 
     public static PlaceBidResult placeBidResult(int auctionId, int userId, double bidAmount) {
-        String checkAuctionSql = "SELECT a.status, a.end_time, a.current_highest_bid, a.item_id, " +
+        String checkAuctionSql = "SELECT a.status, a.end_time, a.current_highest_bid, a.bin_price, a.item_id, " +
                 "i.min_increment, i.seller_id, i.name AS item_name " +
                 "FROM auction_sessions a JOIN items i ON a.item_id = i.id WHERE a.id = ? FOR UPDATE";
         String insertBidSql = "INSERT INTO bids (auction_id, user_id, bid_amount) VALUES (?, ?, ?)";
         String updateAuctionSql = "UPDATE auction_sessions SET current_highest_bid = ? WHERE id = ?";
+        String finishByBinSql = "UPDATE auction_sessions SET winner_id = ?, status = 'FINISHED', end_time = NOW() WHERE id = ?";
         String updateItemSql = "UPDATE items SET current_price = ? WHERE id = ?";
 
         Connection conn = null;
@@ -92,6 +103,7 @@ public class BidDAO {
             Timestamp endTime;
             double currentHighestBid;
             double minIncrement;
+            double binPrice;
             int itemId;
             int sellerId;
             String itemName;
@@ -107,6 +119,7 @@ public class BidDAO {
                 status = rs.getString("status");
                 endTime = rs.getTimestamp("end_time");
                 currentHighestBid = rs.getDouble("current_highest_bid");
+                binPrice = rs.getDouble("bin_price");
                 minIncrement = rs.getDouble("min_increment");
                 itemId = rs.getInt("item_id");
                 sellerId = rs.getInt("seller_id");
@@ -149,8 +162,18 @@ public class BidDAO {
                 ps.executeUpdate();
             }
 
+            boolean binTriggered = shouldTriggerBin(binPrice, bidAmount);
+            if (binTriggered) {
+                try (PreparedStatement ps = conn.prepareStatement(finishByBinSql)) {
+                    ps.setInt(1, userId);
+                    ps.setInt(2, auctionId);
+                    ps.executeUpdate();
+                }
+            }
+
             conn.commit();
-            return PlaceBidResult.success(bidAmount, currentHighestBid, itemId, sellerId, itemName);
+            return PlaceBidResult.success(bidAmount, currentHighestBid, itemId, sellerId, itemName,
+                    binTriggered, binPrice);
         } catch (SQLException e) {
             if (conn != null) {
                 try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
@@ -172,6 +195,13 @@ public class BidDAO {
         return reason == BidFailureReason.NONE
                 ? "SUCCESS"
                 : validationMessage(reason, status, currentHighestBid, minIncrement);
+    }
+
+    static boolean shouldTriggerBin(double binPrice, double bidAmount) {
+        return Double.isFinite(binPrice)
+                && Double.isFinite(bidAmount)
+                && binPrice > 0
+                && bidAmount >= binPrice;
     }
 
     private static BidFailureReason validateBidReason(String status, Timestamp endTime, double currentHighestBid,

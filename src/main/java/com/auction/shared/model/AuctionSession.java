@@ -20,6 +20,7 @@ public class AuctionSession extends Entity {
     private String itemImagePath;
     private double startingPrice;
     private double minIncrement;
+    private double binPrice;
     private int bidCount;
     private String checkoutStatus;
     private Timestamp paymentDueAt;
@@ -87,6 +88,9 @@ public class AuctionSession extends Entity {
 
     public double getMinIncrement() { return minIncrement; }
     public void setMinIncrement(double minIncrement) { this.minIncrement = minIncrement; }
+
+    public double getBinPrice() { return binPrice; }
+    public void setBinPrice(double binPrice) { this.binPrice = binPrice; }
 
     public int getBidCount() { return bidCount; }
     public void setBidCount(int bidCount) { this.bidCount = bidCount; }

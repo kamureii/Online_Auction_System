@@ -223,13 +223,19 @@ public class ServerConnector {
     }
 
     public Response addProduct(String name, String description, String category,
-                               double startingPrice, double minIncrement, int sellerId, int auctionDays) {
-        return addProduct(name, description, category, startingPrice, minIncrement, sellerId, auctionDays, "");
+                               double startingPrice, double minIncrement, int sellerId, int auctionHours) {
+        return addProduct(name, description, category, startingPrice, minIncrement, sellerId, auctionHours, 0, "");
     }
 
     public Response addProduct(String name, String description, String category,
-                               double startingPrice, double minIncrement, int sellerId, int auctionDays,
+                               double startingPrice, double minIncrement, int sellerId, int auctionHours,
                                String imagePath) {
+        return addProduct(name, description, category, startingPrice, minIncrement, sellerId, auctionHours, 0, imagePath);
+    }
+
+    public Response addProduct(String name, String description, String category,
+                               double startingPrice, double minIncrement, int sellerId, int auctionHours,
+                               double binPrice, String imagePath) {
         JsonObject payload = new JsonObject();
         payload.addProperty("name", name);
         payload.addProperty("description", description);
@@ -237,7 +243,10 @@ public class ServerConnector {
         payload.addProperty("startingPrice", startingPrice);
         payload.addProperty("minIncrement", minIncrement);
         payload.addProperty("sellerId", sellerId);
-        payload.addProperty("auctionDays", auctionDays);
+        payload.addProperty("auctionHours", auctionHours);
+        if (binPrice > 0) {
+            payload.addProperty("binPrice", binPrice);
+        }
         payload.addProperty("imagePath", imagePath == null ? "" : imagePath);
         return sendRequest(new Request("ADD_ITEM", payload.toString()));
     }

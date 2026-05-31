@@ -325,7 +325,9 @@ public class DashboardController implements AuctionEventListener {
         TextField startingPriceField = new TextField();
         startingPriceField.setPromptText("Giá khởi điểm");
         TextField minIncrementField = new TextField("10000");
-        TextField auctionDaysField = new TextField("1");
+        TextField auctionHoursField = new TextField("1");
+        TextField binPriceField = new TextField();
+        binPriceField.setPromptText("Bỏ trống nếu không dùng BIN");
         TextField imagePathField = new TextField();
         imagePathField.setEditable(false);
         imagePathField.setPromptText("Chưa chọn ảnh");
@@ -340,7 +342,8 @@ public class DashboardController implements AuctionEventListener {
                 new HBox(12,
                         fieldBlock("Giá khởi điểm", startingPriceField),
                         fieldBlock("Bước giá tối thiểu", minIncrementField),
-                        fieldBlock("Số ngày đấu giá", auctionDaysField)),
+                        fieldBlock("Số giờ đấu giá", auctionHoursField),
+                        fieldBlock("Giá BIN", binPriceField)),
                 fieldBlock("Ảnh sản phẩm", imagePickerRow(imagePathField, preview)),
                 preview);
         form.getStyleClass().add("inline-form");
@@ -349,7 +352,7 @@ public class DashboardController implements AuctionEventListener {
         post.getStyleClass().add("primary-button");
         post.setOnAction(e -> submitNewItem(new ItemFormData(
                 nameField.getText(), descriptionField.getText(), categoryCodeFromDisplay(categoryBox.getValue()),
-                startingPriceField.getText(), minIncrementField.getText(), auctionDaysField.getText(),
+                startingPriceField.getText(), minIncrementField.getText(), auctionHoursField.getText(), binPriceField.getText(),
                 imagePathField.getText())));
 
         showOverlay("Đăng bán sản phẩm", "Bạn sẽ tạo phòng với tư cách Người bán.", form, List.of(post, closeButton()));
@@ -1592,13 +1595,18 @@ public class DashboardController implements AuctionEventListener {
             }
             double startingPrice = parsePositiveMoney(data.startingPrice, "giá khởi điểm");
             double minIncrement = parsePositiveMoney(data.minIncrement, "bước giá");
-            int days = parseDays(data.auctionDays);
+            int hours = parseHours(data.auctionHours);
+            double binPrice = parseOptionalMoney(data.binPrice, "giá BIN");
+            if (binPrice > 0 && binPrice < startingPrice + minIncrement) {
+                showToast("Giá BIN phải lớn hơn hoặc bằng giá đặt hợp lệ đầu tiên.", false);
+                return;
+            }
 
             if (data.name.length() >= 0) {
                 CompletableFuture
                         .supplyAsync(() -> connector.addProduct(data.name.trim(), safeText(data.description),
                                 data.category,
-                                startingPrice, minIncrement, currentUser.getId(), days, safeText(data.imagePath)))
+                                startingPrice, minIncrement, currentUser.getId(), hours, binPrice, safeText(data.imagePath)))
                         .thenAccept(res -> Platform.runLater(() -> {
                             boolean ok = res != null && "SUCCESS".equals(res.getStatus());
                             if (ok) {
@@ -1616,7 +1624,7 @@ public class DashboardController implements AuctionEventListener {
             }
 
             Response res = connector.addProduct(data.name.trim(), safeText(data.description), data.category,
-                    startingPrice, minIncrement, currentUser.getId(), days, safeText(data.imagePath));
+                    startingPrice, minIncrement, currentUser.getId(), hours, binPrice, safeText(data.imagePath));
             boolean ok = res != null && "SUCCESS".equals(res.getStatus());
             if (ok) {
                 hideOverlay();
@@ -2046,14 +2054,29 @@ public class DashboardController implements AuctionEventListener {
         }
     }
 
-    private int parseDays(String raw) {
+    private double parseOptionalMoney(String raw, String label) {
+        String input = safeText(raw).replace(",", "").replace(".", "").trim();
+        if (input.isBlank()) {
+            return 0;
+        }
         try {
-            int days = Integer.parseInt(safeText(raw).trim());
-            if (days < 1 || days > 30)
+            double value = Double.parseDouble(input);
+            if (!Double.isFinite(value) || value < 0)
                 throw new NumberFormatException();
-            return days;
+            return value;
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Số ngày đấu giá phải từ 1 đến 30.");
+            throw new IllegalArgumentException("Vui lòng nhập " + label + " hợp lệ hoặc bỏ trống.");
+        }
+    }
+
+    private int parseHours(String raw) {
+        try {
+            int hours = Integer.parseInt(safeText(raw).trim());
+            if (hours < 1 || hours > 720)
+                throw new NumberFormatException();
+            return hours;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Số giờ đấu giá phải từ 1 đến 720.");
         }
     }
 
@@ -2210,6 +2233,6 @@ public class DashboardController implements AuctionEventListener {
     }
 
     private record ItemFormData(String name, String description, String category, String startingPrice,
-            String minIncrement, String auctionDays, String imagePath) {
+            String minIncrement, String auctionHours, String binPrice, String imagePath) {
     }
 }

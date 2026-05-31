@@ -14,7 +14,7 @@ public class AuctionSessionDAO {
      * Tạo phiên đấu giá mới, trả về id.
      */
     public static int createAuction(AuctionSession session) {
-        String sql = "INSERT INTO auction_sessions (item_id, start_time, end_time, status, current_highest_bid) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO auction_sessions (item_id, start_time, end_time, status, current_highest_bid, bin_price) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, session.getItemId());
@@ -22,6 +22,11 @@ public class AuctionSessionDAO {
             ps.setTimestamp(3, session.getEndTime());
             ps.setString(4, session.getStatus());
             ps.setDouble(5, session.getCurrentHighestBid());
+            if (session.getBinPrice() > 0) {
+                ps.setDouble(6, session.getBinPrice());
+            } else {
+                ps.setNull(6, Types.DECIMAL);
+            }
             ps.executeUpdate();
 
             ResultSet keys = ps.getGeneratedKeys();
@@ -399,6 +404,7 @@ public class AuctionSessionDAO {
             AuctionSession session = new AuctionSession(old.getItemId(), now, end);
             session.setStatus("OPEN");
             session.setCurrentHighestBid(item.getStartingPrice());
+            session.setBinPrice(old.getBinPrice());
             int auctionId = createAuction(session);
             highlightAuction(auctionId, new Timestamp(System.currentTimeMillis() + 86400000L));
             return auctionId;
@@ -438,6 +444,7 @@ public class AuctionSessionDAO {
         try { session.setItemImagePath(rs.getString("item_image_path")); } catch (SQLException ignored) {}
         try { session.setStartingPrice(rs.getDouble("item_starting_price")); } catch (SQLException ignored) {}
         try { session.setMinIncrement(rs.getDouble("item_min_increment")); } catch (SQLException ignored) {}
+        try { session.setBinPrice(rs.getDouble("bin_price")); } catch (SQLException ignored) {}
         try { session.setBidCount(rs.getInt("bid_count")); } catch (SQLException ignored) {}
         try { session.setCheckoutStatus(rs.getString("checkout_status")); } catch (SQLException ignored) {}
         try { session.setPaymentDueAt(rs.getTimestamp("payment_due_at")); } catch (SQLException ignored) {}

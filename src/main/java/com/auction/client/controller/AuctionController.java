@@ -104,6 +104,7 @@ public class AuctionController implements AuctionEventListener {
     private double currentPrice;
     private double startingPrice;
     private double minIncrement;
+    private double binPrice;
     private int currentBidCount;
     private long endTimeMillis;
     private Timeline countdownTimeline;
@@ -198,12 +199,13 @@ public class AuctionController implements AuctionEventListener {
         this.currentPrice = session.getCurrentHighestBid();
         this.startingPrice = session.getStartingPrice() > 0 ? session.getStartingPrice() : currentPrice;
         this.minIncrement = session.getMinIncrement() > 0 ? session.getMinIncrement() : 500_000;
+        this.binPrice = session.getBinPrice();
         this.currentBidCount = Math.max(0, session.getBidCount());
         this.endTimeMillis = session.getEndTime().getTime();
 
         productNameLabel.setText(fallbackText(session.getItemName(), "iP17"));
-        productDetailsLabel.setText(fallbackText(session.getItemDescription(),
-                "iP17 – Smartphone cao cấp với hiệu năng vượt trội, dung lượng lớn, camera chuyên nghiệp và thiết kế sang trọng. Bảo hành chính hãng 12 tháng."));
+        productDetailsLabel.setText(detailsWithBin(fallbackText(session.getItemDescription(),
+                "iP17 – Smartphone cao cấp với hiệu năng vượt trội, dung lượng lớn, camera chuyên nghiệp và thiết kế sang trọng. Bảo hành chính hãng 12 tháng.")));
         roomCodeLabel.setText(roomCode(session));
         minIncrementLabel.setText(formatMoney(minIncrement));
         if (bidIncrementField != null && bidIncrementField.getText().isBlank()) {
@@ -587,6 +589,13 @@ public class AuctionController implements AuctionEventListener {
     private String fallbackText(String value, String fallback) {
         String safe = nullToText(value);
         return safe.isBlank() ? fallback : safe;
+    }
+
+    private String detailsWithBin(String details) {
+        if (binPrice <= 0) {
+            return details;
+        }
+        return details + "\nBIN: " + formatMoney(binPrice) + " - bid đạt mức này sẽ thắng ngay.";
     }
 
     private String formatMoney(double amount) {
