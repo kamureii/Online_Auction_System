@@ -133,6 +133,10 @@ public class DashboardController implements AuctionEventListener {
                 renderHome();
         });
         connector.addEventListener(this);
+        if (Boolean.getBoolean("auction.ui.smokeTest")) {
+            renderHome();
+            return;
+        }
         Platform.runLater(this::refreshAuctionList);
     }
 
@@ -1436,8 +1440,8 @@ public class DashboardController implements AuctionEventListener {
                 documentCard("CCCD", "Thông tin CCCD được lưu trong hồ sơ cá nhân.", "Theo dõi"),
                 documentCard("Xác thực thanh toán", "Tên chủ tài khoản phải trùng với tên thật trong hồ sơ.",
                         "Đã cấu hình"),
-                documentCard("Quy chế tham gia", "Placeholder cho tài liệu/quy chế đấu giá của người dùng.",
-                        "Bản nháp"));
+                documentCard("Quy chế tham gia", "Đọc kỹ bước giá, thời hạn thanh toán và trách nhiệm giao nhận trước khi đặt giá.",
+                        "Sẵn sàng"));
         body.getChildren().setAll(wrapScroll(accountPage("Tài liệu của tôi", docs)));
     }
 
@@ -1589,6 +1593,7 @@ public class DashboardController implements AuctionEventListener {
         GridPane grid = new GridPane();
         grid.setHgap(14);
         grid.setVgap(12);
+        grid.getStyleClass().add("checkout-grid");
         grid.add(fieldBlock("Phương thức thanh toán", method), 0, 0);
         grid.add(fieldBlock("Số điện thoại giao hàng", phone), 1, 0);
         grid.add(fieldBlock("Tỉnh/Thành phố", city), 0, 1);
@@ -1598,6 +1603,7 @@ public class DashboardController implements AuctionEventListener {
 
         VBox form = new VBox(14, checkoutStepHeader(1, isBankTransfer(context.paymentCode)),
                 checkoutItemsSummary(context), grid);
+        form.getStyleClass().add("checkout-form");
         Button next = new Button("Tiếp tục");
         next.getStyleClass().add("primary-button");
         next.setOnAction(e -> {
@@ -1638,6 +1644,7 @@ public class DashboardController implements AuctionEventListener {
         GridPane grid = new GridPane();
         grid.setHgap(14);
         grid.setVgap(12);
+        grid.getStyleClass().add("checkout-grid");
         grid.add(fieldBlock("Mã số thẻ / STK ngân hàng", account), 0, 0);
         grid.add(fieldBlock("Tên chủ tài khoản", owner), 1, 0);
 
@@ -1645,6 +1652,7 @@ public class DashboardController implements AuctionEventListener {
         note.setWrapText(true);
         note.getStyleClass().add("account-note");
         VBox form = new VBox(14, checkoutStepHeader(2, true), checkoutItemsSummary(context), grid, note, confirm);
+        form.getStyleClass().add("checkout-form");
 
         Button back = new Button("Quay lại địa chỉ");
         back.getStyleClass().add("ghost-button");
@@ -1685,6 +1693,7 @@ public class DashboardController implements AuctionEventListener {
     private void showCheckoutInvoiceStep(CheckoutContext context) {
         VBox invoice = new VBox(14, checkoutStepHeader(3, isBankTransfer(context.paymentCode)),
                 checkoutItemsSummary(context), checkoutInvoiceDetails(context));
+        invoice.getStyleClass().add("checkout-form");
         Button editAddress = new Button("Sửa địa chỉ");
         editAddress.getStyleClass().add("ghost-button");
         editAddress.setOnAction(e -> showCheckoutAddressStep(context));
@@ -1718,6 +1727,7 @@ public class DashboardController implements AuctionEventListener {
     private Node checkoutStepHeader(int activeStep, boolean includeBankStep) {
         HBox steps = new HBox(8);
         steps.setAlignment(Pos.CENTER_LEFT);
+        steps.getStyleClass().add("checkout-stepper");
         steps.getChildren().add(checkoutStepLabel(activeStep == 1, "1. Địa chỉ"));
         if (includeBankStep) {
             steps.getChildren().add(checkoutStepLabel(activeStep == 2, "2. ATM"));
@@ -1731,12 +1741,13 @@ public class DashboardController implements AuctionEventListener {
     private Label checkoutStepLabel(boolean active, String text) {
         Label label = new Label(text);
         label.getStyleClass().add(active ? "status-pill-warning" : "status-pill");
+        label.getStyleClass().add(active ? "checkout-step-active" : "checkout-step");
         return label;
     }
 
     private Node checkoutItemsSummary(CheckoutContext context) {
         VBox rows = new VBox(8);
-        rows.getStyleClass().add("panel-list");
+        rows.getStyleClass().addAll("panel-list", "checkout-summary");
         for (CartItem item : context.items) {
             HBox row = new HBox(10);
             row.setAlignment(Pos.CENTER_LEFT);
@@ -1748,11 +1759,11 @@ public class DashboardController implements AuctionEventListener {
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
             row.getChildren().addAll(name, spacer, price);
-            row.getStyleClass().add("cart-row");
+            row.getStyleClass().addAll("cart-row", "checkout-summary-row");
             rows.getChildren().add(row);
         }
         Label total = new Label(String.format("Tổng thanh toán: %,.0f VNĐ", context.totalAmount()));
-        total.getStyleClass().add("cart-price");
+        total.getStyleClass().addAll("cart-price", "checkout-total");
         rows.getChildren().add(total);
         return rows;
     }
@@ -1761,6 +1772,7 @@ public class DashboardController implements AuctionEventListener {
         GridPane grid = new GridPane();
         grid.setHgap(14);
         grid.setVgap(12);
+        grid.getStyleClass().add("checkout-invoice-grid");
         grid.add(invoiceField("Phương thức", displayPaymentMethod(context.paymentCode)), 0, 0);
         grid.add(invoiceField("Số điện thoại", context.shippingPhone), 1, 0);
         grid.add(invoiceField("Địa chỉ giao hàng", context.fullAddress), 0, 1, 2, 1);
@@ -1774,7 +1786,7 @@ public class DashboardController implements AuctionEventListener {
     private Node invoiceField(String label, String value) {
         Label text = new Label(nullToText(value, "-"));
         text.setWrapText(true);
-        text.getStyleClass().add("cart-details");
+        text.getStyleClass().addAll("cart-details", "checkout-invoice-value");
         return fieldBlock(label, text);
     }
 

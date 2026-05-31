@@ -11,8 +11,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.rmi.ServerError;
-import java.sql.SQLOutput;
 import java.util.Scanner;
 
 public class ClientMain
@@ -29,8 +27,7 @@ public class ClientMain
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             Scanner scanner = new Scanner(System.in);
 
-            //test login and register feature
-            System.out.println("Welcome to ABC AUCTION SERVER");
+            System.out.println("Welcome to BidShift legacy socket client");
             System.out.println("1. Login");
             System.out.println("2. Register");
             System.out.println("Choose your choice (1 or 2): ");
@@ -45,7 +42,7 @@ public class ClientMain
                 String password = scanner.next();
 
                 LoginDTO loginData = new LoginDTO(username, password);
-                String payloadJson = gson.toJson(loginData);
+                requestJson = gson.toJson(new Request("LOGIN", gson.toJson(loginData)));
             }
             else { //test register
                 System.out.println("Please enter your Username: ");

@@ -23,6 +23,7 @@ public class RestApiServer {
         server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/api/auth", new AuthRestHandler());
         server.createContext("/api/chat", new ChatRestHandler());
+        server.createContext("/api/config/status", new ConfigStatusHandler());
         executor = Executors.newCachedThreadPool(r -> {
             Thread thread = new Thread(r);
             thread.setName("RestApiWorker-" + thread.getId());

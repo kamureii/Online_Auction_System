@@ -4,6 +4,7 @@ import com.auction.shared.dto.LoginDTO;
 import com.auction.shared.dto.PaymentProfileDTO;
 import com.auction.shared.dto.ProfileDTO;
 import com.auction.shared.dto.RegisterDTO;
+import com.auction.shared.dto.RuntimeStatusDTO;
 import com.auction.shared.config.AppConfig;
 import com.auction.shared.factory.ItemFactory;
 import com.auction.shared.factory.UserFactory;
@@ -493,6 +494,27 @@ public class ServerConnector {
             return new Response("ERROR", "Yêu cầu AI bị gián đoạn.", null);
         } catch (Exception e) {
             return new Response("ERROR", "Không thể kết nối AI lúc này.", null);
+        }
+    }
+
+    public RuntimeStatusDTO getRuntimeStatus() {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://" + SERVER_IP + ":" + REST_PORT + "/api/config/status"))
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            Response apiResponse = gson.fromJson(response.body(), Response.class);
+            if (!isSuccess(apiResponse)) {
+                return null;
+            }
+            return gson.fromJson(apiResponse.getPayload(), RuntimeStatusDTO.class);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        } catch (Exception e) {
+            return null;
         }
     }
 

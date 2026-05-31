@@ -1113,6 +1113,65 @@
     -fx-background-color: transparent;
 }
 
+.checkout-form {
+    -fx-spacing: 14;
+}
+
+.checkout-grid,
+.checkout-invoice-grid {
+    -fx-background-color: linear-gradient(to bottom, rgba(229, 9, 20, 0.035), transparent);
+    -fx-background-radius: 14;
+    -fx-border-color: -auction-line;
+    -fx-border-radius: 14;
+    -fx-padding: 14;
+}
+
+.checkout-stepper {
+    -fx-padding: 2 0 4 0;
+}
+
+.checkout-step,
+.checkout-step-active {
+    -fx-padding: 7 11;
+}
+
+.checkout-step-active {
+    -fx-effect: dropshadow(gaussian, rgba(229, 9, 20, 0.18), 14, 0.12, 0, 4);
+}
+
+.checkout-summary {
+    -fx-background-color: -auction-surface;
+    -fx-background-radius: 14;
+    -fx-border-color: -auction-line;
+    -fx-border-radius: 14;
+    -fx-padding: 10;
+}
+
+.checkout-summary-row {
+    -fx-effect: none;
+}
+
+.checkout-total {
+    -fx-padding: 8 6 2 6;
+    -fx-alignment: center-right;
+}
+
+.checkout-invoice-value {
+    -fx-text-fill: -auction-text;
+    -fx-font-weight: 800;
+}
+
+.ai-chat-config {
+    -fx-background-color: -auction-red-soft;
+    -fx-background-radius: 12;
+    -fx-border-color: rgba(229, 9, 20, 0.20);
+    -fx-border-radius: 12;
+    -fx-padding: 9 11;
+    -fx-text-fill: -auction-text;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+
 .inline-message {
     -fx-text-fill: -auction-muted;
     -fx-font-weight: 800;
