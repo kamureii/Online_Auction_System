@@ -415,6 +415,21 @@ SET @column_exists := (
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE()
       AND TABLE_NAME = 'cart_items'
+      AND COLUMN_NAME = 'shipping_phone'
+);
+SET @sql := IF(@column_exists = 0,
+    'ALTER TABLE cart_items ADD COLUMN shipping_phone VARCHAR(30) NULL AFTER shipping_address',
+    'SELECT ''cart_items.shipping_phone already exists'' AS message'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @column_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'cart_items'
       AND COLUMN_NAME = 'delivery_status'
 );
 SET @sql := IF(@column_exists = 0,

@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS cart_items (
     status ENUM('PENDING', 'PAID', 'CANCELED') DEFAULT 'PENDING',
     payment_method VARCHAR(80),
     shipping_address TEXT,
+    shipping_phone VARCHAR(30),
     delivery_status ENUM('WAITING_PAYMENT', 'WAITING_SHIPMENT', 'SHIPPING', 'DELIVERED') NOT NULL DEFAULT 'WAITING_PAYMENT',
     tracking_code VARCHAR(120),
     won_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

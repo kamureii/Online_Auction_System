@@ -10,6 +10,7 @@ config/application.properties
 .idea/modules.xml
 .idea/jarRepositories.xml
 .idea/compiler.xml
+.idea/data_source_mapping.xml
 .idea/libraries/
 *.iws
 *.iml

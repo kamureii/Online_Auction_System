@@ -22,12 +22,17 @@ import java.net.Socket;
 import java.sql.Timestamp;
 import java.lang.reflect.Type;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Xử lý một kết nối socket đang mở với client.
  * Handler nhận request JSON, gọi service/DAO tương ứng rồi trả response hoặc push event.
  */
 public class ClientHandler implements Runnable {
+    private static final int MIN_AUCTION_HOURS = 1;
+    private static final int MAX_AUCTION_HOURS = 720;
+    private static final String PUBLIC_REGISTRATION_ROLE = "USER";
+
     private final Socket clientSocket;
     private PrintWriter out;
     private BufferedReader in;
@@ -50,9 +55,16 @@ public class ClientHandler implements Runnable {
 
             String clientMessage;
             while ((clientMessage = in.readLine()) != null) {
-                System.out.println("[Client " + clientSocket.getPort() + "]: " + clientMessage);
+                Request request;
+                try {
+                    request = gson.fromJson(clientMessage, Request.class);
+                } catch (Exception e) {
+                    logClientRequest(null);
+                    sendResponse(new Response("ERROR", "Request không hợp lệ!", null));
+                    continue;
+                }
+                logClientRequest(request);
 
-                Request request = gson.fromJson(clientMessage, Request.class);
                 Response response = null;
 
                 if (request != null && request.getAction() != null) {
@@ -84,6 +96,25 @@ public class ClientHandler implements Runnable {
         }
 
         return handleAuthenticatedRequest(action, request.getPayload());
+    }
+
+    private void logClientRequest(Request request) {
+        System.out.println(buildRequestLogMessage(clientSocket.getPort(), request));
+    }
+
+    static String buildRequestLogMessage(int clientPort, Request request) {
+        return "[Client " + clientPort + "] action=" + sanitizeLogAction(request == null ? null : request.getAction());
+    }
+
+    private static String sanitizeLogAction(String action) {
+        if (action == null || action.isBlank()) {
+            return "INVALID";
+        }
+        String safe = action.trim();
+        if (!safe.matches("[A-Za-z0-9_-]{1,64}")) {
+            return "INVALID";
+        }
+        return safe;
     }
 
     private boolean isPublicAction(String action) {
@@ -213,6 +244,108 @@ public class ClientHandler implements Runnable {
         return new Response("ERROR", "Không có quyền thực hiện chức năng này. Cần vai trò: " + requiredRole, null);
     }
 
+    static String validateAuctionItemInput(String name, String category, double startingPrice,
+                                           double minIncrement, int auctionHours, double binPrice) {
+        String itemError = validateItemBasics(name, category, startingPrice, minIncrement);
+        if (itemError != null) {
+            return itemError;
+        }
+        if (auctionHours < MIN_AUCTION_HOURS || auctionHours > MAX_AUCTION_HOURS) {
+            return "Thời hạn đấu giá phải từ 1 đến 720 giờ.";
+        }
+        if (!Double.isFinite(binPrice) || binPrice < 0) {
+            return "Giá BIN không hợp lệ.";
+        }
+        if (binPrice > 0 && binPrice < startingPrice + minIncrement) {
+            return "Giá BIN phải lớn hơn hoặc bằng giá đặt hợp lệ đầu tiên.";
+        }
+        return null;
+    }
+
+    static String validateItemBasics(String name, String category, double startingPrice, double minIncrement) {
+        if (name == null || name.trim().isEmpty()) {
+            return "Vui lòng nhập tên sản phẩm.";
+        }
+        if (name.trim().length() > 255) {
+            return "Tên sản phẩm không được vượt quá 255 ký tự.";
+        }
+        if (normalizeCategory(category) == null) {
+            return "Danh mục sản phẩm không hợp lệ.";
+        }
+        if (!Double.isFinite(startingPrice) || startingPrice <= 0) {
+            return "Giá khởi điểm phải là số hợp lệ và lớn hơn 0.";
+        }
+        if (!Double.isFinite(minIncrement) || minIncrement <= 0) {
+            return "Bước giá tối thiểu phải là số hợp lệ và lớn hơn 0.";
+        }
+        return null;
+    }
+
+    static String validateAutoBidInput(double maxBid, double bidIncrement, AuctionSession session) {
+        if (session == null) {
+            return "Không tìm thấy phiên đấu giá.";
+        }
+        String status = session.getStatus();
+        if (!"OPEN".equals(status) && !"RUNNING".equals(status)) {
+            return "Chỉ có thể đặt auto-bid cho phiên sắp hoặc đang đấu giá.";
+        }
+        if (!Double.isFinite(maxBid) || maxBid <= 0) {
+            return "Giá auto-bid tối đa phải là số hợp lệ và lớn hơn 0.";
+        }
+        if (!Double.isFinite(bidIncrement) || bidIncrement <= 0) {
+            return "Bước nhảy auto-bid phải là số hợp lệ và lớn hơn 0.";
+        }
+        double minRequired = session.getCurrentHighestBid() + Math.max(0, session.getMinIncrement());
+        if (maxBid < minRequired) {
+            return String.format("Giá auto-bid tối đa phải đạt ít nhất %,.0f VNĐ.", minRequired);
+        }
+        return null;
+    }
+
+    static String normalizeCategory(String category) {
+        String value = category == null || category.isBlank()
+                ? "OTHER"
+                : category.trim().toUpperCase(Locale.ROOT);
+        try {
+            ItemCategory.valueOf(value);
+            return value;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private static String readString(com.google.gson.JsonObject obj, String key, String defaultValue) {
+        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) {
+            return defaultValue;
+        }
+        return obj.get(key).getAsString();
+    }
+
+    private static double readDouble(com.google.gson.JsonObject obj, String key, double defaultValue) {
+        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) {
+            return defaultValue;
+        }
+        try {
+            return obj.get(key).getAsDouble();
+        } catch (RuntimeException e) {
+            return Double.NaN;
+        }
+    }
+
+    private static int readAuctionHours(com.google.gson.JsonObject obj) {
+        try {
+            if (obj != null && obj.has("auctionHours") && !obj.get("auctionHours").isJsonNull()) {
+                return obj.get("auctionHours").getAsInt();
+            }
+            if (obj != null && obj.has("auctionDays") && !obj.get("auctionDays").isJsonNull()) {
+                return obj.get("auctionDays").getAsInt() * 24;
+            }
+        } catch (RuntimeException e) {
+            return -1;
+        }
+        return 24;
+    }
+
     // Auth
 
     private Response handleLogin(String payload) {
@@ -221,7 +354,8 @@ public class ClientHandler implements Runnable {
         try {
             loggedInUser = userDAO.loginUser(loginData.getLoginIdentifier(), loginData.getPassword());
         } catch (IllegalStateException e) {
-            return new Response("ERROR", e.getMessage(), null);
+            System.err.println("Lỗi đăng nhập: " + e.getMessage());
+            return new Response("ERROR", "Không thể đăng nhập lúc này. Vui lòng kiểm tra cấu hình máy chủ.", null);
         }
 
         if (loggedInUser != null) {
@@ -259,11 +393,8 @@ public class ClientHandler implements Runnable {
             return new Response("ERROR", "Email đã được sử dụng!", null);
         }
 
-        String requestedRole = registerData.getRole();
-        String safeRole = "ADMIN".equalsIgnoreCase(requestedRole) ? "ADMIN" : "USER";
-
         User newUser = UserFactory.createNewUser(
-                safeRole,
+                publicRegistrationRole(registerData.getRole()),
                 registerData.getUsername(),
                 registerData.getEmail(),
                 registerData.getPassword(),
@@ -275,6 +406,10 @@ public class ClientHandler implements Runnable {
             return new Response("SUCCESS", "Đăng ký tài khoản thành công!", null);
         }
         return new Response("ERROR", "Đăng ký thất bại! Vui lòng thử lại.", null);
+    }
+
+    static String publicRegistrationRole(String requestedRole) {
+        return PUBLIC_REGISTRATION_ROLE;
     }
 
     // Items
@@ -290,33 +425,23 @@ public class ClientHandler implements Runnable {
         }
         try {
             com.google.gson.JsonObject obj = gson.fromJson(payload, com.google.gson.JsonObject.class);
-            String name = obj.get("name").getAsString();
-            String description = obj.has("description") ? obj.get("description").getAsString() : "";
-            String category = obj.has("category") ? obj.get("category").getAsString() : "OTHER";
-            double startingPrice = obj.get("startingPrice").getAsDouble();
-            double minIncrement = obj.get("minIncrement").getAsDouble();
+            String name = readString(obj, "name", "");
+            String description = readString(obj, "description", "");
+            String category = readString(obj, "category", "OTHER");
+            double startingPrice = readDouble(obj, "startingPrice", Double.NaN);
+            double minIncrement = readDouble(obj, "minIncrement", Double.NaN);
             int sellerId = currentUser.getId();
-            int auctionHours = obj.has("auctionHours")
-                    ? obj.get("auctionHours").getAsInt()
-                    : obj.has("auctionDays") ? obj.get("auctionDays").getAsInt() * 24 : 24;
-            double binPrice = obj.has("binPrice") && !obj.get("binPrice").isJsonNull()
-                    ? obj.get("binPrice").getAsDouble()
-                    : 0;
-            String imagePath = obj.has("imagePath") && !obj.get("imagePath").isJsonNull()
-                    ? obj.get("imagePath").getAsString()
-                    : "";
+            int auctionHours = readAuctionHours(obj);
+            double binPrice = readDouble(obj, "binPrice", 0);
+            String imagePath = readString(obj, "imagePath", "");
 
-            if (auctionHours < 1 || auctionHours > 720) {
-                return new Response("ERROR", "Thời hạn đấu giá phải từ 1 đến 720 giờ.", null);
+            String validationError = validateAuctionItemInput(name, category, startingPrice, minIncrement, auctionHours, binPrice);
+            if (validationError != null) {
+                return new Response("ERROR", validationError, null);
             }
-            if (!Double.isFinite(binPrice) || binPrice < 0) {
-                return new Response("ERROR", "Giá BIN không hợp lệ.", null);
-            }
-            if (binPrice > 0 && binPrice < startingPrice + minIncrement) {
-                return new Response("ERROR", "Giá BIN phải lớn hơn hoặc bằng giá đặt hợp lệ đầu tiên.", null);
-            }
+            String safeCategory = normalizeCategory(category);
 
-            Item newItem = ItemFactory.createNewItem(category, name, description, startingPrice, minIncrement, sellerId);
+            Item newItem = ItemFactory.createNewItem(safeCategory, name.trim(), description, startingPrice, minIncrement, sellerId);
             newItem.setImagePath(imagePath);
             int itemId = ItemDAO.addItem(newItem);
 
@@ -342,7 +467,7 @@ public class ClientHandler implements Runnable {
             return new Response("ERROR", "Không thể lưu sản phẩm vào database!", null);
         } catch (Exception e) {
             System.err.println("Lỗi thêm sản phẩm: " + e.getMessage());
-            return new Response("ERROR", "Lỗi server: " + e.getMessage(), null);
+            return new Response("ERROR", "Không thể đăng bán sản phẩm lúc này.", null);
         }
     }
 
@@ -350,14 +475,19 @@ public class ClientHandler implements Runnable {
         try {
             com.google.gson.JsonObject obj = gson.fromJson(payload, com.google.gson.JsonObject.class);
             int id = obj.get("id").getAsInt();
-            String name = obj.get("name").getAsString();
-            String description = obj.get("description").getAsString();
-            String category = obj.get("category").getAsString();
-            double startingPrice = obj.get("startingPrice").getAsDouble();
-            double minIncrement = obj.get("minIncrement").getAsDouble();
+            String name = readString(obj, "name", "");
+            String description = readString(obj, "description", "");
+            String category = readString(obj, "category", "OTHER");
+            double startingPrice = readDouble(obj, "startingPrice", Double.NaN);
+            double minIncrement = readDouble(obj, "minIncrement", Double.NaN);
             int sellerId = currentUser.getId();
+            String validationError = validateItemBasics(name, category, startingPrice, minIncrement);
+            if (validationError != null) {
+                return new Response("ERROR", validationError, null);
+            }
+            String safeCategory = normalizeCategory(category);
 
-            Item item = ItemFactory.createItem(category, id, name, description, startingPrice, startingPrice, minIncrement, sellerId);
+            Item item = ItemFactory.createItem(safeCategory, id, name.trim(), description, startingPrice, startingPrice, minIncrement, sellerId);
             boolean success = ItemDAO.updateItem(item);
 
             if (success) {
@@ -367,7 +497,8 @@ public class ClientHandler implements Runnable {
             }
             return new Response("ERROR", "Không thể cập nhật sản phẩm!", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi server: " + e.getMessage(), null);
+            System.err.println("Lỗi cập nhật sản phẩm: " + e.getMessage());
+            return new Response("ERROR", "Không thể cập nhật sản phẩm lúc này.", null);
         }
     }
 
@@ -385,7 +516,8 @@ public class ClientHandler implements Runnable {
             }
             return new Response("ERROR", "Không thể xóa sản phẩm!", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi server: " + e.getMessage(), null);
+            System.err.println("Lỗi xóa sản phẩm: " + e.getMessage());
+            return new Response("ERROR", "Không thể xóa sản phẩm lúc này.", null);
         }
     }
 
@@ -406,7 +538,8 @@ public class ClientHandler implements Runnable {
             List<AuctionSession> auctions = AuctionSessionDAO.getPublicAuctions(category, status);
             return new Response("SUCCESS", "Lấy danh sách đấu giá public!", gson.toJson(auctions));
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi lấy danh sách đấu giá: " + e.getMessage(), null);
+            System.err.println("Lỗi lấy danh sách đấu giá public: " + e.getMessage());
+            return new Response("ERROR", "Không thể lấy danh sách đấu giá lúc này.", null);
         }
     }
 
@@ -439,7 +572,8 @@ public class ClientHandler implements Runnable {
                     ? new Response("SUCCESS", "Đã tham gia phòng đấu giá!", null)
                     : new Response("ERROR", "Không thể tham gia phòng đấu giá!", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi tham gia đấu giá: " + e.getMessage(), null);
+            System.err.println("Lỗi tham gia đấu giá: " + e.getMessage());
+            return new Response("ERROR", "Không thể tham gia phòng đấu giá lúc này.", null);
         }
     }
 
@@ -470,7 +604,8 @@ public class ClientHandler implements Runnable {
             }
             return new Response("ERROR", "Không thể đăng lại phiên đấu giá!", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi đăng lại đấu giá: " + e.getMessage(), null);
+            System.err.println("Lỗi đăng lại đấu giá: " + e.getMessage());
+            return new Response("ERROR", "Không thể đăng lại phiên đấu giá lúc này.", null);
         }
     }
 
@@ -488,7 +623,8 @@ public class ClientHandler implements Runnable {
             }
             return new Response("ERROR", "Không tìm thấy phiên đấu giá!", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi: " + e.getMessage(), null);
+            System.err.println("Lỗi lấy chi tiết đấu giá: " + e.getMessage());
+            return new Response("ERROR", "Không thể lấy chi tiết phiên đấu giá lúc này.", null);
         }
     }
 
@@ -561,7 +697,8 @@ public class ClientHandler implements Runnable {
             }
             return new Response("ERROR", result.getMessage(), null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi đặt giá: " + e.getMessage(), null);
+            System.err.println("Lỗi đặt giá: " + e.getMessage());
+            return new Response("ERROR", "Không thể đặt giá lúc này.", null);
         }
     }
 
@@ -571,7 +708,8 @@ public class ClientHandler implements Runnable {
             List<Bid> bids = BidDAO.getBidHistory(auctionId);
             return new Response("SUCCESS", "Lấy lịch sử bid!", gson.toJson(bids));
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi: " + e.getMessage(), null);
+            System.err.println("Lỗi lấy lịch sử bid: " + e.getMessage());
+            return new Response("ERROR", "Không thể lấy lịch sử bid lúc này.", null);
         }
     }
 
@@ -591,6 +729,10 @@ public class ClientHandler implements Runnable {
             AuctionSession targetSession = AuctionSessionDAO.getAuctionById(auctionId);
             if (targetSession == null) {
                 return new Response("ERROR", "Không tìm thấy phiên đấu giá!", null);
+            }
+            String validationError = validateAutoBidInput(maxBid, bidIncrement, targetSession);
+            if (validationError != null) {
+                return new Response("ERROR", validationError, null);
             }
             if (targetSession.getSellerId() == userId) {
                 return new Response("ERROR", "Bạn không thể đặt auto-bid cho sản phẩm của chính mình.", null);
@@ -614,7 +756,8 @@ public class ClientHandler implements Runnable {
             }
             return new Response("ERROR", "Không thể tạo auto-bid!", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi: " + e.getMessage(), null);
+            System.err.println("Lỗi đặt auto-bid: " + e.getMessage());
+            return new Response("ERROR", "Không thể đặt auto-bid lúc này.", null);
         }
     }
 
@@ -626,7 +769,8 @@ public class ClientHandler implements Runnable {
             AutoBidDAO.deactivateUserAutoBids(auctionId, userId);
             return new Response("SUCCESS", "Đã hủy auto-bid!", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi: " + e.getMessage(), null);
+            System.err.println("Lỗi hủy auto-bid: " + e.getMessage());
+            return new Response("ERROR", "Không thể hủy auto-bid lúc này.", null);
         }
     }
 
@@ -652,7 +796,8 @@ public class ClientHandler implements Runnable {
             }
             return new Response("ERROR", "Không thể cập nhật hồ sơ!", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi cập nhật hồ sơ: " + e.getMessage(), null);
+            System.err.println("Lỗi cập nhật hồ sơ: " + e.getMessage());
+            return new Response("ERROR", "Không thể cập nhật hồ sơ lúc này.", null);
         }
     }
 
@@ -692,7 +837,8 @@ public class ClientHandler implements Runnable {
                     ? new Response("SUCCESS", "Cập nhật thanh toán thành công!", null)
                     : new Response("ERROR", "Không thể cập nhật thanh toán!", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi cập nhật thanh toán: " + e.getMessage(), null);
+            System.err.println("Lỗi cập nhật thanh toán: " + e.getMessage());
+            return new Response("ERROR", "Không thể cập nhật thanh toán lúc này.", null);
         }
     }
 
@@ -723,11 +869,12 @@ public class ClientHandler implements Runnable {
             List<Integer> cartItemIds = gson.fromJson(obj.get("cartItemIds"), listType);
             String paymentMethod = obj.has("paymentMethod") ? obj.get("paymentMethod").getAsString() : "";
             String address = obj.has("address") ? obj.get("address").getAsString() : "";
-            String validationError = CartDAO.validateCheckoutInput(cartItemIds, paymentMethod, address);
+            String shippingPhone = obj.has("shippingPhone") ? obj.get("shippingPhone").getAsString() : "";
+            String validationError = CartDAO.validateCheckoutInput(cartItemIds, paymentMethod, address, shippingPhone);
             if (validationError != null) {
                 return new Response("ERROR", validationError, null);
             }
-            boolean success = CartDAO.checkout(currentUser.getId(), cartItemIds, paymentMethod, address);
+            boolean success = CartDAO.checkout(currentUser.getId(), cartItemIds, paymentMethod, address, shippingPhone);
             if (success) {
                 userDAO.applyPaidReward(currentUser.getId());
                 notifySellersAfterCheckout(CartDAO.getCartItemsByIds(currentUser.getId(), cartItemIds));
@@ -741,7 +888,8 @@ public class ClientHandler implements Runnable {
             }
             return new Response("ERROR", "Không thể thanh toán các mặt hàng đã chọn!", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi thanh toán: " + e.getMessage(), null);
+            System.err.println("Lỗi thanh toán: " + e.getMessage());
+            return new Response("ERROR", "Không thể thanh toán lúc này.", null);
         }
     }
 
@@ -768,7 +916,8 @@ public class ClientHandler implements Runnable {
             }
             return new Response("ERROR", "Không thể cập nhật giao hàng cho đơn này.", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi cập nhật giao hàng: " + e.getMessage(), null);
+            System.err.println("Lỗi cập nhật giao hàng: " + e.getMessage());
+            return new Response("ERROR", "Không thể cập nhật giao hàng lúc này.", null);
         }
     }
 
@@ -826,7 +975,8 @@ public class ClientHandler implements Runnable {
             if (success) return new Response("SUCCESS", "Xóa người dùng thành công!", null);
             return new Response("ERROR", "Không thể xóa người dùng!", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi: " + e.getMessage(), null);
+            System.err.println("Lỗi xóa người dùng: " + e.getMessage());
+            return new Response("ERROR", "Không thể xóa người dùng lúc này.", null);
         }
     }
 
@@ -846,7 +996,8 @@ public class ClientHandler implements Runnable {
             }
             return new Response("ERROR", "Không thể hủy phiên!", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi: " + e.getMessage(), null);
+            System.err.println("Lỗi hủy phiên đấu giá: " + e.getMessage());
+            return new Response("ERROR", "Không thể hủy phiên lúc này.", null);
         }
     }
 
@@ -861,7 +1012,8 @@ public class ClientHandler implements Runnable {
             }
             return new Response("ERROR", "Chỉ có thể đánh dấu PAID cho phiên FINISHED!", null);
         } catch (Exception e) {
-            return new Response("ERROR", "Lỗi: " + e.getMessage(), null);
+            System.err.println("Lỗi đánh dấu PAID: " + e.getMessage());
+            return new Response("ERROR", "Không thể đánh dấu thanh toán lúc này.", null);
         }
     }
 

@@ -1384,11 +1384,13 @@ public class DashboardController implements AuctionEventListener {
         Label address = new Label("Giao đến: " + nullToText(item.getShippingAddress(), "-"));
         address.setWrapText(true);
         address.getStyleClass().add("cart-details");
+        Label phone = new Label("SĐT giao hàng: " + nullToText(item.getShippingPhone(), "-"));
+        phone.getStyleClass().add("cart-details");
         Label tracking = new Label(
                 isBlank(item.getTrackingCode()) ? "Mã vận đơn: -" : "Mã vận đơn: " + item.getTrackingCode());
         tracking.getStyleClass().add("cart-due");
 
-        VBox info = new VBox(6, name, buyer, new HBox(8, price, payment, delivery), address, tracking);
+        VBox info = new VBox(6, name, buyer, new HBox(8, price, payment, delivery), address, phone, tracking);
         HBox.setHgrow(info, Priority.ALWAYS);
 
         VBox actions = new VBox(8);
@@ -1517,10 +1519,12 @@ public class DashboardController implements AuctionEventListener {
                 Label address = new Label("Giao đến: " + nullToText(item.getShippingAddress(), "-"));
                 address.setWrapText(true);
                 address.getStyleClass().add("cart-details");
+                Label phone = new Label("SĐT giao hàng: " + nullToText(item.getShippingPhone(), "-"));
+                phone.getStyleClass().add("cart-details");
                 Label tracking = new Label(
                         isBlank(item.getTrackingCode()) ? "Mã vận đơn: -" : "Mã vận đơn: " + item.getTrackingCode());
                 tracking.getStyleClass().add("cart-due");
-                info.getChildren().addAll(address, tracking);
+                info.getChildren().addAll(address, phone, tracking);
             }
             HBox.setHgrow(info, Priority.ALWAYS);
             HBox row = new HBox(14, check, imageWrapper, info);
@@ -1536,50 +1540,317 @@ public class DashboardController implements AuctionEventListener {
     }
 
     private void showCheckoutPanel(List<CheckBox> checks) {
-        List<Integer> selected = checks.stream()
+        List<CartItem> selectedItems = checks.stream()
                 .filter(CheckBox::isSelected)
                 .filter(check -> !check.isDisabled())
-                .map(check -> ((CartItem) check.getUserData()).getId())
+                .map(check -> (CartItem) check.getUserData())
                 .toList();
-        if (selected.isEmpty()) {
+        if (selectedItems.isEmpty()) {
             showToast("Hãy chọn ít nhất một sản phẩm chưa thanh toán.", false);
             return;
         }
-        ComboBox<String> method = new ComboBox<>();
-        method.getItems().addAll("COD - Thanh toán khi nhận hàng", "Chuyển khoản ngân hàng");
-        method.setValue("COD - Thanh toán khi nhận hàng");
-        TextArea address = new TextArea();
-        address.setPromptText("Địa chỉ giao hàng");
-        address.setPrefRowCount(4);
-        VBox form = new VBox(12, fieldBlock("Phương thức thanh toán", method),
-                fieldBlock("Địa chỉ giao hàng", address));
-        Button pay = new Button("Xác nhận thanh toán");
-        pay.getStyleClass().add("primary-button");
-        pay.setOnAction(e -> {
-            String checkoutAddress = address.getText();
-            if (isBlank(checkoutAddress)) {
-                showToast("Vui lòng nhập địa chỉ giao hàng.", false);
-                return;
-            }
-            String paymentCode = paymentCodeFromDisplay(method.getValue());
-            if (pay.getText().length() >= 0) {
-                runResponseTask(pay, "Đang thanh toán...",
-                        () -> connector.checkout(selected, paymentCode, checkoutAddress), res -> {
-                            boolean ok = res != null && "SUCCESS".equals(res.getStatus());
-                            showToast(ok ? "Thanh toán thành công."
-                                    : (res != null ? res.getMessage() : "Không thể thanh toán."), ok);
-                            hideOverlay();
-                            showAccountHub("cart");
-                        });
-                return;
-            }
-            Response res = connector.checkout(selected, paymentCode, checkoutAddress);
-            boolean ok = res != null && "SUCCESS".equals(res.getStatus());
-            showToast(ok ? "Thanh toán thành công." : (res != null ? res.getMessage() : "Không thể thanh toán."), ok);
-            hideOverlay();
-            showAccountHub("cart");
+        CheckoutContext context = new CheckoutContext(selectedItems);
+        showOverlay("Thanh toán", "Đang chuẩn bị thông tin thanh toán.", emptyBlock("Đang tải dữ liệu",
+                "BidShift đang lấy hồ sơ giao hàng và phương thức thanh toán của bạn."), List.of(closeButton()));
+        CompletableFuture
+                .supplyAsync(() -> new CheckoutLoadData(connector.getProfile(), connector.getPaymentProfile()))
+                .thenAccept(data -> Platform.runLater(() -> {
+                    context.applyProfile(data.profile());
+                    context.applyPaymentProfile(data.payment());
+                    showCheckoutAddressStep(context);
+                }))
+                .exceptionally(error -> {
+                    Platform.runLater(() -> showToast("Không tải được thông tin thanh toán.", false));
+                    return null;
+                });
+    }
+
+    private void showCheckoutAddressStep(CheckoutContext context) {
+        ComboBox<String> method = comboBox(List.of(
+                "COD - Thanh toán khi nhận hàng",
+                "ATM Payment - Chuyển khoản ngân hàng"
+        ), context.paymentDisplay);
+        TextField phone = new TextField(context.shippingPhone);
+        phone.setPromptText("Số điện thoại giao hàng");
+        TextField address = new TextField(context.homeAddress);
+        address.setPromptText("Số nhà, tên đường");
+        ComboBox<String> city = comboBox(VietnamAddressData.provinceNames(), context.city);
+        ComboBox<String> district = comboBox(VietnamAddressData.districtNames(city.getValue()), context.district);
+        ComboBox<String> ward = comboBox(VietnamAddressData.wardNames(city.getValue(), district.getValue()),
+                context.ward);
+
+        city.valueProperty().addListener((obs, oldValue, newValue) -> {
+            setComboItems(district, VietnamAddressData.districtNames(newValue), "");
+            setComboItems(ward, List.of(), "");
         });
-        showOverlay("Thanh toán", "Hoàn tất đơn thắng đấu giá.", form, List.of(pay, closeButton()));
+        district.valueProperty().addListener((obs, oldValue, newValue) -> setComboItems(ward,
+                VietnamAddressData.wardNames(city.getValue(), newValue), ""));
+
+        GridPane grid = new GridPane();
+        grid.setHgap(14);
+        grid.setVgap(12);
+        grid.add(fieldBlock("Phương thức thanh toán", method), 0, 0);
+        grid.add(fieldBlock("Số điện thoại giao hàng", phone), 1, 0);
+        grid.add(fieldBlock("Tỉnh/Thành phố", city), 0, 1);
+        grid.add(fieldBlock("Quận/Huyện", district), 1, 1);
+        grid.add(fieldBlock("Xã/Phường", ward), 0, 2);
+        grid.add(fieldBlock("Địa chỉ nhà", address), 1, 2);
+
+        VBox form = new VBox(14, checkoutStepHeader(1, isBankTransfer(context.paymentCode)),
+                checkoutItemsSummary(context), grid);
+        Button next = new Button("Tiếp tục");
+        next.getStyleClass().add("primary-button");
+        next.setOnAction(e -> {
+            context.paymentDisplay = selectedValue(method);
+            context.paymentCode = paymentCodeFromDisplay(context.paymentDisplay);
+            context.shippingPhone = normalizeCheckoutPhone(phone.getText());
+            context.city = selectedValue(city);
+            context.district = selectedValue(district);
+            context.ward = selectedValue(ward);
+            context.homeAddress = safeText(address.getText());
+            context.fullAddress = buildCheckoutAddress(context.homeAddress, context.ward, context.district, context.city);
+
+            if (isBlank(context.shippingPhone)) {
+                showToast("Vui lòng nhập số điện thoại hợp lệ.", false);
+                return;
+            }
+            if (isBlank(context.homeAddress) || isBlank(context.city) || isBlank(context.district) || isBlank(context.ward)) {
+                showToast("Vui lòng nhập đủ địa chỉ nhà, xã/phường, quận/huyện và tỉnh/thành phố.", false);
+                return;
+            }
+            if (isBankTransfer(context.paymentCode)) {
+                showCheckoutBankStep(context);
+            } else {
+                showCheckoutInvoiceStep(context);
+            }
+        });
+        showOverlay("Thanh toán", "Xác nhận địa chỉ giao hàng cho đơn thắng đấu giá.", form, List.of(next, closeButton()));
+    }
+
+    private void showCheckoutBankStep(CheckoutContext context) {
+        TextField account = new TextField(context.bankAccountNumber);
+        account.setPromptText("Số tài khoản / số thẻ ngân hàng");
+        TextField owner = new TextField(context.accountOwnerName);
+        owner.setPromptText("Tên chủ tài khoản");
+        CheckBox confirm = new CheckBox("Tôi xác nhận số tài khoản và tên chủ tài khoản là chính xác.");
+        confirm.setWrapText(true);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(14);
+        grid.setVgap(12);
+        grid.add(fieldBlock("Mã số thẻ / STK ngân hàng", account), 0, 0);
+        grid.add(fieldBlock("Tên chủ tài khoản", owner), 1, 0);
+
+        Label note = new Label("Thông tin ATM sẽ được cập nhật vào hồ sơ thanh toán trước khi xuất hóa đơn.");
+        note.setWrapText(true);
+        note.getStyleClass().add("account-note");
+        VBox form = new VBox(14, checkoutStepHeader(2, true), checkoutItemsSummary(context), grid, note, confirm);
+
+        Button back = new Button("Quay lại địa chỉ");
+        back.getStyleClass().add("ghost-button");
+        back.setOnAction(e -> showCheckoutAddressStep(context));
+        Button next = new Button("Tiếp tục");
+        next.getStyleClass().add("primary-button");
+        next.setOnAction(e -> {
+            context.bankAccountNumber = safeText(account.getText());
+            context.accountOwnerName = safeText(owner.getText());
+            if (isBlank(context.bankAccountNumber) || isBlank(context.accountOwnerName)) {
+                showToast("Vui lòng nhập mã số thẻ/STK và tên chủ tài khoản.", false);
+                return;
+            }
+            if (!confirm.isSelected()) {
+                showToast("Bạn cần xác nhận thông tin ATM trước khi tiếp tục.", false);
+                return;
+            }
+            PaymentProfileDTO profile = context.paymentProfile == null ? new PaymentProfileDTO() : context.paymentProfile;
+            if (profile.getUserId() <= 0 && ServerConnector.currentUser != null) {
+                profile.setUserId(ServerConnector.currentUser.getId());
+            }
+            profile.setBankAccountNumber(context.bankAccountNumber);
+            profile.setAccountOwnerName(context.accountOwnerName);
+            context.paymentProfile = profile;
+            runResponseTask(next, "Đang cập nhật...", () -> connector.updatePaymentProfile(profile), res -> {
+                boolean ok = res != null && "SUCCESS".equals(res.getStatus());
+                if (ok) {
+                    showCheckoutInvoiceStep(context);
+                } else {
+                    showToast(res != null ? res.getMessage() : "Không cập nhật được thông tin ATM.", false);
+                }
+            });
+        });
+        showOverlay("Xác nhận ATM Payment", "Kiểm tra lại tài khoản ngân hàng trước khi xuất hóa đơn.",
+                form, List.of(back, next, closeButton()));
+    }
+
+    private void showCheckoutInvoiceStep(CheckoutContext context) {
+        VBox invoice = new VBox(14, checkoutStepHeader(3, isBankTransfer(context.paymentCode)),
+                checkoutItemsSummary(context), checkoutInvoiceDetails(context));
+        Button editAddress = new Button("Sửa địa chỉ");
+        editAddress.getStyleClass().add("ghost-button");
+        editAddress.setOnAction(e -> showCheckoutAddressStep(context));
+        Button editBank = new Button("Sửa ATM");
+        editBank.getStyleClass().add("ghost-button");
+        editBank.setOnAction(e -> showCheckoutBankStep(context));
+        Button confirm = new Button("Xác nhận thanh toán");
+        confirm.getStyleClass().add("primary-button");
+        confirm.setOnAction(e -> runResponseTask(confirm, "Đang thanh toán...",
+                () -> connector.checkout(context.cartItemIds(), context.paymentCode, context.fullAddress, context.shippingPhone),
+                res -> {
+                    boolean ok = res != null && "SUCCESS".equals(res.getStatus());
+                    showToast(ok ? "Thanh toán thành công."
+                            : (res != null ? res.getMessage() : "Không thể thanh toán."), ok);
+                    if (ok) {
+                        hideOverlay();
+                        showAccountHub("cart");
+                    }
+                }));
+        List<Button> actions = new ArrayList<>();
+        actions.add(editAddress);
+        if (isBankTransfer(context.paymentCode)) {
+            actions.add(editBank);
+        }
+        actions.add(confirm);
+        actions.add(closeButton());
+        showOverlay("Hóa đơn thanh toán", "Xác nhận giá tiền, địa chỉ và số điện thoại giao hàng.",
+                invoice, actions);
+    }
+
+    private Node checkoutStepHeader(int activeStep, boolean includeBankStep) {
+        HBox steps = new HBox(8);
+        steps.setAlignment(Pos.CENTER_LEFT);
+        steps.getChildren().add(checkoutStepLabel(activeStep == 1, "1. Địa chỉ"));
+        if (includeBankStep) {
+            steps.getChildren().add(checkoutStepLabel(activeStep == 2, "2. ATM"));
+            steps.getChildren().add(checkoutStepLabel(activeStep == 3, "3. Hóa đơn"));
+        } else {
+            steps.getChildren().add(checkoutStepLabel(activeStep == 3, "2. Hóa đơn"));
+        }
+        return steps;
+    }
+
+    private Label checkoutStepLabel(boolean active, String text) {
+        Label label = new Label(text);
+        label.getStyleClass().add(active ? "status-pill-warning" : "status-pill");
+        return label;
+    }
+
+    private Node checkoutItemsSummary(CheckoutContext context) {
+        VBox rows = new VBox(8);
+        rows.getStyleClass().add("panel-list");
+        for (CartItem item : context.items) {
+            HBox row = new HBox(10);
+            row.setAlignment(Pos.CENTER_LEFT);
+            Label name = new Label(nullToText(item.getItemName(), "Sản phẩm"));
+            name.setWrapText(true);
+            name.getStyleClass().add("cart-title");
+            Label price = new Label(String.format("%,.0f VNĐ", item.getWinningPrice()));
+            price.getStyleClass().add("cart-price");
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+            row.getChildren().addAll(name, spacer, price);
+            row.getStyleClass().add("cart-row");
+            rows.getChildren().add(row);
+        }
+        Label total = new Label(String.format("Tổng thanh toán: %,.0f VNĐ", context.totalAmount()));
+        total.getStyleClass().add("cart-price");
+        rows.getChildren().add(total);
+        return rows;
+    }
+
+    private Node checkoutInvoiceDetails(CheckoutContext context) {
+        GridPane grid = new GridPane();
+        grid.setHgap(14);
+        grid.setVgap(12);
+        grid.add(invoiceField("Phương thức", displayPaymentMethod(context.paymentCode)), 0, 0);
+        grid.add(invoiceField("Số điện thoại", context.shippingPhone), 1, 0);
+        grid.add(invoiceField("Địa chỉ giao hàng", context.fullAddress), 0, 1, 2, 1);
+        if (isBankTransfer(context.paymentCode)) {
+            grid.add(invoiceField("Mã số thẻ / STK", context.bankAccountNumber), 0, 2);
+            grid.add(invoiceField("Tên chủ tài khoản", context.accountOwnerName), 1, 2);
+        }
+        return grid;
+    }
+
+    private Node invoiceField(String label, String value) {
+        Label text = new Label(nullToText(value, "-"));
+        text.setWrapText(true);
+        text.getStyleClass().add("cart-details");
+        return fieldBlock(label, text);
+    }
+
+    private String buildCheckoutAddress(String homeAddress, String ward, String district, String city) {
+        return String.join(", ", List.of(safeText(homeAddress), safeText(ward), safeText(district), safeText(city)));
+    }
+
+    private String normalizeCheckoutPhone(String value) {
+        String normalized = safeText(value).replaceAll("[\\s-]+", "");
+        return normalized.matches("0\\d{9}") || normalized.matches("\\+84\\d{9}") ? normalized : "";
+    }
+
+    private boolean isBankTransfer(String paymentCode) {
+        return "BANK_TRANSFER".equals(paymentCodeFromDisplay(paymentCode));
+    }
+
+    private record CheckoutLoadData(ProfileDTO profile, PaymentProfileDTO payment) {}
+
+    private static class CheckoutContext {
+        private final List<CartItem> items;
+        private String paymentDisplay = "COD - Thanh toán khi nhận hàng";
+        private String paymentCode = "COD";
+        private String shippingPhone = "";
+        private String city = "";
+        private String district = "";
+        private String ward = "";
+        private String homeAddress = "";
+        private String fullAddress = "";
+        private PaymentProfileDTO paymentProfile;
+        private String bankAccountNumber = "";
+        private String accountOwnerName = "";
+
+        CheckoutContext(List<CartItem> items) {
+            this.items = new ArrayList<>(items == null ? List.of() : items);
+        }
+
+        void applyProfile(ProfileDTO profile) {
+            if (profile == null) {
+                return;
+            }
+            shippingPhone = nullToEmpty(profile.getPhone());
+            city = nullToEmpty(profile.getCity());
+            district = nullToEmpty(profile.getDistrict());
+            ward = nullToEmpty(profile.getWard());
+            homeAddress = nullToEmpty(profile.getAddress());
+            fullAddress = joinAddress(homeAddress, ward, district, city);
+            if (accountOwnerName.isBlank()) {
+                accountOwnerName = nullToEmpty(profile.getFullName());
+            }
+        }
+
+        void applyPaymentProfile(PaymentProfileDTO payment) {
+            paymentProfile = payment == null ? new PaymentProfileDTO() : payment;
+            bankAccountNumber = nullToEmpty(paymentProfile.getBankAccountNumber());
+            String owner = nullToEmpty(paymentProfile.getAccountOwnerName());
+            if (!owner.isBlank()) {
+                accountOwnerName = owner;
+            }
+        }
+
+        List<Integer> cartItemIds() {
+            return items.stream().map(CartItem::getId).toList();
+        }
+
+        double totalAmount() {
+            return items.stream().mapToDouble(CartItem::getWinningPrice).sum();
+        }
+
+        private static String nullToEmpty(String value) {
+            return value == null ? "" : value.trim();
+        }
+
+        private static String joinAddress(String homeAddress, String ward, String district, String city) {
+            return String.join(", ", List.of(nullToEmpty(homeAddress), nullToEmpty(ward), nullToEmpty(district),
+                    nullToEmpty(city)));
+        }
     }
 
     private void submitNewItem(ItemFormData data) {
@@ -2135,7 +2406,7 @@ public class DashboardController implements AuctionEventListener {
     private String displayPaymentMethod(String method) {
         return switch (nullToText(method, "").toUpperCase(Locale.ROOT)) {
             case "COD" -> "COD";
-            case "BANK_TRANSFER" -> "Chuyển khoản";
+            case "BANK_TRANSFER" -> "ATM Payment";
             default -> "Chưa chọn";
         };
     }
@@ -2160,7 +2431,9 @@ public class DashboardController implements AuctionEventListener {
 
     private String paymentCodeFromDisplay(String value) {
         String normalized = nullToText(value, "").toLowerCase(Locale.ROOT);
-        return normalized.contains("chuyển") || normalized.contains("khoản") ? "BANK_TRANSFER" : "COD";
+        return normalized.contains("atm") || normalized.contains("bank_transfer")
+                || normalized.contains("chuyển") || normalized.contains("khoản")
+                || normalized.contains("ngân hàng") ? "BANK_TRANSFER" : "COD";
     }
 
     private String formatDate(Timestamp timestamp) {

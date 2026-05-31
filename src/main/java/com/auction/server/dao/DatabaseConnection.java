@@ -18,7 +18,7 @@ import java.util.Properties;
 public class DatabaseConnection {
     private static final String DEFAULT_URL = "jdbc:mysql://localhost:3306/online_auction";
     private static final String DEFAULT_USER = "root";
-    private static final String DEFAULT_PASSWORD = "Kamurei2911";
+    private static final String DEFAULT_PASSWORD = "";
     private static final String DEFAULT_CONNECT_TIMEOUT_MS = "5000";
     private static final String DEFAULT_SOCKET_TIMEOUT_MS = "10000";
 
@@ -45,7 +45,11 @@ public class DatabaseConnection {
 
         Properties properties = new Properties();
         properties.setProperty("user", config("auction.db.user", "AUCTION_DB_USER", DEFAULT_USER));
-        properties.setProperty("password", config("auction.db.password", "AUCTION_DB_PASSWORD", DEFAULT_PASSWORD));
+        String password = config("auction.db.password", "AUCTION_DB_PASSWORD", DEFAULT_PASSWORD);
+        if (password.isBlank()) {
+            throw new SQLException("Missing database password configuration. Set AUCTION_DB_PASSWORD or auction.db.password.");
+        }
+        properties.setProperty("password", password);
         properties.setProperty("connectTimeout", String.valueOf(connectTimeoutMs));
         properties.setProperty("socketTimeout",
                 config("auction.db.socketTimeoutMs", "AUCTION_DB_SOCKET_TIMEOUT_MS", DEFAULT_SOCKET_TIMEOUT_MS));
