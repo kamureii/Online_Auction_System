@@ -76,8 +76,9 @@ public class AuthRestHandler implements HttpHandler {
             JsonHttpUtils.sendResponse(exchange, 200,
                     new Response("SUCCESS", "Đăng nhập thành công!", payload.toString()));
         } catch (IllegalStateException e) {
+            System.err.println("REST login configuration error: " + e.getMessage());
             JsonHttpUtils.sendResponse(exchange, 503,
-                    new Response("ERROR", e.getMessage(), null));
+                    new Response("ERROR", "Khong the dang nhap luc nay. Vui long kiem tra cau hinh may chu.", null));
         } catch (Exception e) {
             JsonHttpUtils.sendResponse(exchange, 400,
                     new Response("ERROR", "Yêu cầu đăng nhập không hợp lệ.", null));

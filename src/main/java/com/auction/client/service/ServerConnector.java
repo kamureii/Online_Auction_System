@@ -339,11 +339,12 @@ public class ServerConnector {
         return new ArrayList<>();
     }
 
-    public Response checkout(List<Integer> cartItemIds, String paymentMethod, String address) {
+    public Response checkout(List<Integer> cartItemIds, String paymentMethod, String address, String shippingPhone) {
         JsonObject payload = new JsonObject();
         payload.add("cartItemIds", gson.toJsonTree(cartItemIds == null ? List.of() : cartItemIds));
         payload.addProperty("paymentMethod", paymentMethod == null ? "" : paymentMethod);
         payload.addProperty("address", address == null ? "" : address);
+        payload.addProperty("shippingPhone", shippingPhone == null ? "" : shippingPhone);
         return sendRequest(new Request("CHECKOUT", payload.toString()));
     }
 

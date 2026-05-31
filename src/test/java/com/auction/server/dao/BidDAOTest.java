@@ -58,4 +58,14 @@ class BidDAOTest {
         assertEquals(false, BidDAO.shouldTriggerBin(0, 2_000));
         assertEquals(false, BidDAO.shouldTriggerBin(Double.NaN, 2_000));
     }
+
+    @Test
+    void binResultKeepsEnteredBidAmountWhenBidExceedsBin() {
+        BidDAO.PlaceBidResult result = BidDAO.PlaceBidResult.success(
+                2_500, 1_500, 1, 2, "Item", true, 2_000);
+
+        assertEquals(2_500, result.getBidAmount());
+        assertEquals(2_000, result.getBinPrice());
+        assertEquals(true, result.isBinTriggered());
+    }
 }

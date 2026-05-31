@@ -36,9 +36,14 @@ public class EmailSender {
     private SendResult sendCode(String to, String code, String subject, String text, String mockLabel) {
         SmtpConfig config = SmtpConfig.fromEnvironment();
         if (!config.isConfigured()) {
-            System.out.println(mockLabel + " To: " + to + " | Code: " + code);
-            return new SendResult(true, false,
-                    "SMTP chưa được cấu hình. Mã OTP đã được in trong console server.");
+            if (config.mockConsole()) {
+                System.out.println(mockLabel + " To: " + to + " | Code: " + code);
+                return new SendResult(true, false,
+                        "SMTP chưa được cấu hình. Mã OTP đã được in trong console server.");
+            }
+            System.err.println(mockLabel + " SMTP is not configured; OTP was not logged.");
+            return new SendResult(false, false,
+                    "SMTP chưa được cấu hình. Vui lòng cấu hình SMTP để gửi OTP.");
         }
 
         try {
@@ -78,7 +83,8 @@ public class EmailSender {
             String password,
             String from,
             boolean startTls,
-            boolean ssl
+            boolean ssl,
+            boolean mockConsole
     ) {
         static SmtpConfig fromEnvironment() {
             String host = config("auction.smtp.host", "AUCTION_SMTP_HOST", "");
@@ -88,7 +94,12 @@ public class EmailSender {
             String from = config("auction.smtp.from", "AUCTION_SMTP_FROM", username);
             boolean ssl = Boolean.parseBoolean(config("auction.smtp.ssl", "AUCTION_SMTP_SSL", "false"));
             boolean startTls = Boolean.parseBoolean(config("auction.smtp.starttls", "AUCTION_SMTP_STARTTLS", "true"));
-            return new SmtpConfig(host, port, username, password, from, startTls, ssl);
+            boolean mockConsole = Boolean.parseBoolean(config(
+                    "auction.email.mockConsole",
+                    "AUCTION_EMAIL_MOCK_CONSOLE",
+                    "false"
+            ));
+            return new SmtpConfig(host, port, username, password, from, startTls, ssl, mockConsole);
         }
 
         boolean isConfigured() {

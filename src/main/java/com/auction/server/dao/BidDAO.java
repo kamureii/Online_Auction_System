@@ -180,7 +180,7 @@ public class BidDAO {
             }
             System.err.println("Lỗi đặt giá: " + e.getMessage());
             return PlaceBidResult.failure(BidFailureReason.SYSTEM_ERROR,
-                    "Lỗi hệ thống: " + e.getMessage(), 0, 0, 0, 0, "");
+                    "Loi he thong khi dat gia. Vui long thu lai.", 0, 0, 0, 0, "");
         } finally {
             if (conn != null) {
                 try { conn.setAutoCommit(true); conn.close(); } catch (SQLException e) { e.printStackTrace(); }

@@ -14,6 +14,7 @@ public class CartItem extends Entity {
     private String status;
     private String paymentMethod;
     private String shippingAddress;
+    private String shippingPhone;
     private String deliveryStatus;
     private String trackingCode;
     private Timestamp wonAt;
@@ -48,6 +49,8 @@ public class CartItem extends Entity {
     public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
     public String getShippingAddress() { return shippingAddress; }
     public void setShippingAddress(String shippingAddress) { this.shippingAddress = shippingAddress; }
+    public String getShippingPhone() { return shippingPhone; }
+    public void setShippingPhone(String shippingPhone) { this.shippingPhone = shippingPhone; }
     public String getDeliveryStatus() { return deliveryStatus; }
     public void setDeliveryStatus(String deliveryStatus) { this.deliveryStatus = deliveryStatus; }
     public String getTrackingCode() { return trackingCode; }

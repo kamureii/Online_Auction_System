@@ -21,7 +21,8 @@ public class CartDAO {
         String sql = "INSERT INTO cart_items (auction_id, item_id, bidder_id, winning_price, status, delivery_status, payment_due_at) " +
                 "VALUES (?, ?, ?, ?, 'PENDING', 'WAITING_PAYMENT', ?) " +
                 "ON DUPLICATE KEY UPDATE status = 'PENDING', delivery_status = 'WAITING_PAYMENT', " +
-                "payment_method = NULL, shipping_address = NULL, tracking_code = NULL, paid_at = NULL, shipped_at = NULL, delivered_at = NULL";
+                "payment_method = NULL, shipping_address = NULL, shipping_phone = NULL, tracking_code = NULL, " +
+                "paid_at = NULL, shipped_at = NULL, delivered_at = NULL";
         Timestamp dueAt = new Timestamp(System.currentTimeMillis() + 7L * 86400000L);
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -67,12 +68,14 @@ public class CartDAO {
         return items.isEmpty() ? null : items.get(0);
     }
 
-    public static boolean checkout(int bidderId, List<Integer> cartItemIds, String paymentMethod, String address) {
-        if (validateCheckoutInput(cartItemIds, paymentMethod, address) != null) return false;
+    public static boolean checkout(int bidderId, List<Integer> cartItemIds, String paymentMethod, String address,
+                                   String shippingPhone) {
+        if (validateCheckoutInput(cartItemIds, paymentMethod, address, shippingPhone) != null) return false;
         String normalizedPayment = normalizePaymentMethod(paymentMethod);
         String safeAddress = safe(address);
+        String safeShippingPhone = normalizeShippingPhone(shippingPhone);
         String placeholders = placeholders(cartItemIds.size());
-        String updateCart = "UPDATE cart_items SET status = 'PAID', payment_method = ?, shipping_address = ?, " +
+        String updateCart = "UPDATE cart_items SET status = 'PAID', payment_method = ?, shipping_address = ?, shipping_phone = ?, " +
                 "delivery_status = 'WAITING_SHIPMENT', paid_at = NOW() " +
                 "WHERE bidder_id = ? AND status = 'PENDING' AND id IN (" + placeholders + ")";
         String auctionSql = "SELECT auction_id FROM cart_items WHERE bidder_id = ? AND status = 'PENDING' AND id IN (" + placeholders + ")";
@@ -92,8 +95,9 @@ public class CartDAO {
             try (PreparedStatement ps = conn.prepareStatement(updateCart)) {
                 ps.setString(1, normalizedPayment);
                 ps.setString(2, safeAddress);
-                ps.setInt(3, bidderId);
-                for (int i = 0; i < cartItemIds.size(); i++) ps.setInt(i + 4, cartItemIds.get(i));
+                ps.setString(3, safeShippingPhone);
+                ps.setInt(4, bidderId);
+                for (int i = 0; i < cartItemIds.size(); i++) ps.setInt(i + 5, cartItemIds.get(i));
                 if (ps.executeUpdate() != cartItemIds.size()) {
                     conn.rollback();
                     return false;
@@ -198,7 +202,8 @@ public class CartDAO {
         }
     }
 
-    public static String validateCheckoutInput(List<Integer> cartItemIds, String paymentMethod, String address) {
+    public static String validateCheckoutInput(List<Integer> cartItemIds, String paymentMethod, String address,
+                                               String shippingPhone) {
         if (cartItemIds == null || cartItemIds.isEmpty()) {
             return "Chọn ít nhất một mặt hàng để thanh toán.";
         }
@@ -208,8 +213,11 @@ public class CartDAO {
         if (normalizePaymentMethod(paymentMethod) == null) {
             return "Phương thức thanh toán không hợp lệ.";
         }
-        if (safe(address).isBlank()) {
+        if (!hasCompleteShippingAddress(address)) {
             return "Địa chỉ giao hàng không được để trống.";
+        }
+        if (normalizeShippingPhone(shippingPhone).isBlank()) {
+            return "Số điện thoại giao hàng không hợp lệ.";
         }
         return null;
     }
@@ -224,11 +232,30 @@ public class CartDAO {
                 || normalized.contains("CASH ON DELIVERY")) {
             return PAYMENT_COD;
         }
-        if (PAYMENT_BANK_TRANSFER.equals(upper) || normalized.contains("CHUYEN KHOAN")
+        if (PAYMENT_BANK_TRANSFER.equals(upper) || normalized.contains("ATM") || normalized.contains("CHUYEN KHOAN")
                 || normalized.contains("BANK TRANSFER") || normalized.contains("NGAN HANG")) {
             return PAYMENT_BANK_TRANSFER;
         }
         return null;
+    }
+
+    public static String normalizeShippingPhone(String phone) {
+        String normalized = safe(phone).replaceAll("[\\s-]+", "");
+        if (normalized.matches("0\\d{9}") || normalized.matches("\\+84\\d{9}")) {
+            return normalized;
+        }
+        return "";
+    }
+
+    public static boolean hasCompleteShippingAddress(String address) {
+        String[] parts = safe(address).split("\\s*,\\s*", -1);
+        int filledParts = 0;
+        for (String part : parts) {
+            if (!safe(part).isBlank()) {
+                filledParts++;
+            }
+        }
+        return filledParts >= 4;
     }
 
     public static String normalizeDeliveryStatus(String deliveryStatus) {
@@ -284,6 +311,7 @@ public class CartDAO {
         item.setStatus(rs.getString("status"));
         item.setPaymentMethod(readString(rs, "payment_method"));
         item.setShippingAddress(readString(rs, "shipping_address"));
+        item.setShippingPhone(readString(rs, "shipping_phone"));
         item.setDeliveryStatus(readString(rs, "delivery_status"));
         item.setTrackingCode(readString(rs, "tracking_code"));
         item.setWonAt(rs.getTimestamp("won_at"));
