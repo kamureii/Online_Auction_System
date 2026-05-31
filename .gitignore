@@ -1,12 +1,26 @@
 target/
 .env
 config/application.properties
+tmp/
+out/
+docs/superpowers/
+plantuml.jar
+project.pdf
+project.puml
+ConvertToPdf.py
+FixUml.py
+GeneratePDFs.py
+GenerateUML.py
+SplitProjectUML.py
+TestKroki.py
+{console.error(e.message)
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 .kotlin
 
 ### IntelliJ IDEA ###
+.idea/
 .idea/modules.xml
 .idea/jarRepositories.xml
 .idea/compiler.xml
