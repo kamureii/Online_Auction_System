@@ -97,7 +97,7 @@ public class EmailSender {
             boolean mockConsole = Boolean.parseBoolean(config(
                     "auction.email.mockConsole",
                     "AUCTION_EMAIL_MOCK_CONSOLE",
-                    "false"
+                    "true"
             ));
             return new SmtpConfig(host, port, username, password, from, startTls, ssl, mockConsole);
         }
