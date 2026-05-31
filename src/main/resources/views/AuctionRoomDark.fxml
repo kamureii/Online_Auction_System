@@ -52,16 +52,15 @@
             </top>
 
             <center>
-                <ScrollPane fitToWidth="true" hbarPolicy="NEVER" pannable="true" styleClass="auction-room-scroll" vbarPolicy="AS_NEEDED">
+                <ScrollPane fitToWidth="true" hbarPolicy="AS_NEEDED" pannable="true" styleClass="auction-room-scroll" vbarPolicy="AS_NEEDED">
                     <content>
-                        <HBox spacing="20" styleClass="auction-room-main">
-                            <padding><Insets top="22" right="34" bottom="30" left="34" /></padding>
+                        <HBox spacing="16" styleClass="auction-room-main">
+                            <padding><Insets top="22" right="24" bottom="30" left="24" /></padding>
 
-                            <VBox spacing="14" prefWidth="620" maxWidth="690" styleClass="auction-bid-column">
+                            <VBox spacing="14" prefWidth="560" maxWidth="640" styleClass="auction-bid-column">
                                 <VBox spacing="16" styleClass="auction-room-card product-bid-card">
                                     <HBox alignment="CENTER_LEFT" spacing="10">
-                                        <Label fx:id="productNameLabel" text="Tên sản phẩm" wrapText="true" styleClass="auction-product-name" />
-                                        <Label text="Sản phẩm" styleClass="auction-product-badge" />
+                                        <Label fx:id="productNameLabel" text="Tên sản phẩm" wrapText="true" minWidth="0" HBox.hgrow="ALWAYS" styleClass="auction-product-name" />
                                     </HBox>
                                     <Label fx:id="roomRoleLabel" text="" wrapText="true" styleClass="seller-view-badge" managed="false" visible="false" />
 
@@ -69,8 +68,8 @@
                                         <StackPane fx:id="productImageFrame" prefHeight="220" prefWidth="292" styleClass="auction-product-image-frame">
                                             <ImageView fx:id="productImageView" fitHeight="220" fitWidth="292" preserveRatio="false" />
                                             <VBox fx:id="productImageFallback" alignment="CENTER" spacing="8" styleClass="auction-product-placeholder">
-                                                <Label text="iP17" styleClass="auction-product-placeholder-mark" />
-                                                <Label text="BidShift Verified" styleClass="auction-product-placeholder-text" />
+                                                <Label text="BID" styleClass="auction-product-placeholder-mark" />
+                                                <Label text="Chưa có ảnh sản phẩm" styleClass="auction-product-placeholder-text" />
                                             </VBox>
                                         </StackPane>
 
@@ -91,11 +90,11 @@
                                                 <Label fx:id="roomCodeLabel" text="-" styleClass="auction-meta-value" GridPane.columnIndex="2" GridPane.rowIndex="0" />
 
                                                 <Label text="♙" styleClass="auction-meta-icon" GridPane.columnIndex="0" GridPane.rowIndex="1" />
-                                                <Label text="Số lượt đấu giá" styleClass="auction-meta-label" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                                                <Label text="Lượt bid" styleClass="auction-meta-label" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                                                 <Label fx:id="bidCountLabel" text="0 lượt" styleClass="auction-meta-value" GridPane.columnIndex="2" GridPane.rowIndex="1" />
 
                                                 <Label text="◷" styleClass="auction-meta-icon" GridPane.columnIndex="0" GridPane.rowIndex="2" />
-                                                <Label text="Thời gian còn lại" styleClass="auction-meta-label" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                                                <Label text="Còn lại" styleClass="auction-meta-label" GridPane.columnIndex="1" GridPane.rowIndex="2" />
                                                 <Label fx:id="timerLabel" text="00:00:00" styleClass="auction-meta-timer" GridPane.columnIndex="2" GridPane.rowIndex="2" />
                                             </GridPane>
                                         </VBox>

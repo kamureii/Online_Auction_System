@@ -62,6 +62,7 @@ public class AdminController {
             }
         });
         usersTable.setItems(usersList);
+        usersTable.setPlaceholder(tablePlaceholder("Chưa có người dùng để hiển thị."));
 
         // Auctions table
         colAuctionId.setCellValueFactory(new PropertyValueFactory<>("id"));
@@ -84,6 +85,7 @@ public class AdminController {
         });
 
         auctionsTable.setItems(auctionsList);
+        auctionsTable.setPlaceholder(tablePlaceholder("Chưa có phiên đấu giá để hiển thị."));
         clearPendingAction();
 
         if (Boolean.getBoolean("auction.ui.smokeTest")) {
@@ -269,6 +271,12 @@ public class AdminController {
     private void showMessage(String msg, boolean success) {
         messageLabel.setText(msg);
         messageLabel.getStyleClass().setAll("inline-message", success ? "inline-message-success" : "inline-message-error");
+    }
+
+    private Label tablePlaceholder(String text) {
+        Label label = new Label(text);
+        label.getStyleClass().add("empty-state-hint");
+        return label;
     }
 
     private String displayRole(String role) {
