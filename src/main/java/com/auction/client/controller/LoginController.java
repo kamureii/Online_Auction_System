@@ -2,6 +2,7 @@ package com.auction.client.controller;
 
 import com.auction.client.navigation.SceneNavigator;
 import com.auction.client.service.ServerConnector;
+import com.auction.shared.dto.RuntimeStatusDTO;
 import com.auction.shared.network.Response;
 
 import javafx.application.Platform;
@@ -98,6 +99,10 @@ public class LoginController {
         Label statusLabel = new Label();
         statusLabel.setWrapText(true);
         statusLabel.setMaxWidth(420);
+        Label environmentLabel = new Label("Đang kiểm tra cấu hình gửi OTP...");
+        environmentLabel.setWrapText(true);
+        environmentLabel.setMaxWidth(420);
+        environmentLabel.getStyleClass().add("inline-message");
 
         Button sendCodeButton = new Button("Gửi mã OTP");
         Button resetButton = new Button("Đổi mật khẩu");
@@ -116,9 +121,10 @@ public class LoginController {
         form.add(confirmPasswordField, 1, 3);
 
         HBox actions = new HBox(10, sendCodeButton, resetButton);
-        VBox content = new VBox(14, form, actions, statusLabel);
+        VBox content = new VBox(14, form, environmentLabel, actions, statusLabel);
         content.setPadding(new Insets(12));
         dialog.getDialogPane().setContent(content);
+        loadPasswordResetRuntimeStatus(environmentLabel);
 
         sendCodeButton.setOnAction(e -> {
             String identifier = identifierField.getText() == null ? "" : identifierField.getText().trim();
@@ -206,6 +212,30 @@ public class LoginController {
                     }
                     onComplete.accept(response);
                 }));
+    }
+
+    private void loadPasswordResetRuntimeStatus(Label target) {
+        CompletableFuture
+                .supplyAsync(() -> ServerConnector.getInstance().getRuntimeStatus())
+                .thenAccept(status -> Platform.runLater(() -> showOtpRuntimeStatus(target, status)))
+                .exceptionally(error -> {
+                    Platform.runLater(() -> setStatus(target, Color.GRAY,
+                            "Không đọc được trạng thái SMTP; vẫn có thể gửi yêu cầu OTP nếu server đã cấu hình."));
+                    return null;
+                });
+    }
+
+    private void showOtpRuntimeStatus(Label target, RuntimeStatusDTO status) {
+        if (status == null || status.getSmtpStatus() == null) {
+            setStatus(target, Color.GRAY,
+                    "Không đọc được trạng thái SMTP; vẫn có thể gửi yêu cầu OTP nếu server đã cấu hình.");
+            return;
+        }
+        String smtpStatus = status.getSmtpStatus();
+        Color color = "CONFIGURED".equalsIgnoreCase(smtpStatus)
+                ? Color.GREEN
+                : ("MOCK".equalsIgnoreCase(smtpStatus) ? Color.ORANGE : Color.RED);
+        setStatus(target, color, status.getSmtpMessage());
     }
 
     private boolean isSuccess(Response response) {

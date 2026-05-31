@@ -176,14 +176,23 @@ public class BidDAO {
                     binTriggered, binPrice);
         } catch (SQLException e) {
             if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    System.err.println("Lỗi rollback khi đặt giá: " + ex.getMessage());
+                }
             }
             System.err.println("Lỗi đặt giá: " + e.getMessage());
             return PlaceBidResult.failure(BidFailureReason.SYSTEM_ERROR,
                     "Loi he thong khi dat gia. Vui long thu lai.", 0, 0, 0, 0, "");
         } finally {
             if (conn != null) {
-                try { conn.setAutoCommit(true); conn.close(); } catch (SQLException e) { e.printStackTrace(); }
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    System.err.println("Lỗi đóng kết nối sau khi đặt giá: " + e.getMessage());
+                }
             }
         }
     }

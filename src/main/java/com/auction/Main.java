@@ -30,7 +30,7 @@ public class Main {
 
     private static void printUsage() {
         System.out.println("Usage:");
-        System.out.println("  java -jar target/online-auction.jar server");
-        System.out.println("  java -jar target/online-auction.jar client");
+        System.out.println("  java -jar release/online-auction.jar server");
+        System.out.println("  java -jar release/online-auction.jar client");
     }
 }

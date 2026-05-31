@@ -56,7 +56,9 @@ public class ChatRestHandler implements HttpHandler {
         String apiKey = resolveApiKey();
         if (apiKey == null || apiKey.isBlank()) {
             JsonHttpUtils.sendResponse(exchange, 503,
-                    new Response("ERROR", "Server chưa cấu hình GEMINI_API_KEY.", null));
+                    new Response("ERROR",
+                            "Trợ lý AI đang tắt vì server chưa cấu hình GEMINI_API_KEY. Đây là tính năng tùy chọn, không ảnh hưởng đấu giá và thanh toán.",
+                            null));
             return;
         }
 

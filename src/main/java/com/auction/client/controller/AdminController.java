@@ -86,6 +86,11 @@ public class AdminController {
         auctionsTable.setItems(auctionsList);
         clearPendingAction();
 
+        if (Boolean.getBoolean("auction.ui.smokeTest")) {
+            statsLabel.setText("0 người dùng | 0 phiên đấu giá | 0 đang diễn ra");
+            showMessage("UI smoke test: bỏ qua tải dữ liệu quản trị.", true);
+            return;
+        }
         refreshData();
     }
 

@@ -2,30 +2,40 @@ package com.auction.server;
 
 import com.auction.server.core.ClientHandler;
 import com.auction.server.core.AuctionScheduler;
+import com.auction.server.dao.DatabaseMigrator;
 import com.auction.server.rest.RestApiServer;
 import com.auction.shared.config.AppConfig;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.SQLException;
 
 public class ServerMain {
     private static final int DEFAULT_PORT = 8080;
 
     public static void main(String[] args) {
-        System.out.println("=====Starting Server======");
+        System.out.println("===== Starting BidShift Server =====");
 
         RestApiServer restApiServer = new RestApiServer();
         AuctionScheduler auctionScheduler = AuctionScheduler.getInstance();
         int port = resolvePort();
+        try {
+            DatabaseMigrator.migrateIfEnabled();
+        } catch (SQLException e) {
+            System.err.println("Không thể khởi động server vì migration DB thất bại: " + e.getMessage());
+            System.err.println("Kiểm tra AUCTION_DB_URL/AUCTION_DB_USER/AUCTION_DB_PASSWORD hoặc đặt AUCTION_DB_AUTO_MIGRATE=false nếu muốn migrate thủ công.");
+            return;
+        }
+
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             restApiServer.start();
             auctionScheduler.start();
-            System.out.println("Connected to " + port);
+            System.out.println("BidShift socket server đang lắng nghe tại cổng " + port);
 
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("Accepted from" + clientSocket.getInetAddress());
+                System.out.println("Accepted connection from " + clientSocket.getInetAddress());
 
                 ClientHandler handler = new ClientHandler(clientSocket);
                 Thread thread = new Thread(handler);

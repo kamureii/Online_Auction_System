@@ -1,6 +1,7 @@
 package com.auction.client.ui;
 
 import com.auction.client.service.ServerConnector;
+import com.auction.shared.dto.RuntimeStatusDTO;
 import com.auction.shared.network.Response;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -41,7 +42,9 @@ public class AiChatWidget {
     private ScrollPane messagesScroll;
     private TextArea input;
     private Button sendButton;
+    private Label configNotice;
     private Node typingRow;
+    private boolean aiUnavailable;
 
     public static AiChatWidget attachTo(StackPane host) {
         AiChatWidget widget = new AiChatWidget();
@@ -118,9 +121,16 @@ public class AiChatWidget {
         composer.getStyleClass().add("ai-chat-composer");
         HBox.setHgrow(input, Priority.ALWAYS);
 
-        VBox shell = new VBox(12, createHeader(), new Separator(), messagesScroll, composer);
+        configNotice = new Label();
+        configNotice.setWrapText(true);
+        configNotice.getStyleClass().add("ai-chat-config");
+        configNotice.setManaged(false);
+        configNotice.setVisible(false);
+
+        VBox shell = new VBox(12, createHeader(), configNotice, new Separator(), messagesScroll, composer);
         shell.getStyleClass().add("ai-chat-panel");
         addBotMessage("Xin chào, mình có thể hỗ trợ bạn về đăng nhập, tham gia đấu giá, trả giá, auto-bid và thanh toán.");
+        loadRuntimeStatus();
         return shell;
     }
 
@@ -193,6 +203,11 @@ public class AiChatWidget {
     }
 
     private void sendMessage() {
+        if (aiUnavailable) {
+            addBotMessage("Trợ lý AI đang tắt trong môi trường này. Các chức năng đấu giá, giỏ hàng và thanh toán vẫn hoạt động bình thường.");
+            return;
+        }
+
         String text = input.getText() == null ? "" : input.getText().trim();
         if (text.isBlank()) {
             return;
@@ -219,7 +234,11 @@ public class AiChatWidget {
             return;
         }
         if (response == null || !"SUCCESS".equals(response.getStatus())) {
-            addBotMessage(response != null ? response.getMessage() : "AI chưa phản hồi.");
+            String message = response != null ? response.getMessage() : "AI chưa phản hồi.";
+            if (message != null && message.contains("GEMINI_API_KEY")) {
+                setAiUnavailable(message);
+            }
+            addBotMessage(message);
             return;
         }
 
@@ -240,8 +259,46 @@ public class AiChatWidget {
     }
 
     private void setSending(boolean sending) {
-        sendButton.setDisable(sending);
-        input.setDisable(sending);
+        sendButton.setDisable(sending || aiUnavailable);
+        input.setDisable(sending || aiUnavailable);
+    }
+
+    private void loadRuntimeStatus() {
+        if (Boolean.getBoolean("auction.ui.smokeTest")) {
+            return;
+        }
+        CompletableFuture
+                .supplyAsync(connector::getRuntimeStatus)
+                .thenAccept(status -> Platform.runLater(() -> applyRuntimeStatus(status)))
+                .exceptionally(error -> null);
+    }
+
+    private void applyRuntimeStatus(RuntimeStatusDTO status) {
+        if (status == null || status.getGeminiStatus() == null) {
+            return;
+        }
+        if ("MISSING".equalsIgnoreCase(status.getGeminiStatus())) {
+            setAiUnavailable(status.getGeminiMessage());
+        }
+    }
+
+    private void setAiUnavailable(String message) {
+        aiUnavailable = true;
+        String notice = message == null || message.isBlank()
+                ? "Trợ lý AI chưa được cấu hình trên server."
+                : message;
+        if (configNotice != null) {
+            configNotice.setText(notice);
+            configNotice.setManaged(true);
+            configNotice.setVisible(true);
+        }
+        if (input != null) {
+            input.setPromptText("AI chưa cấu hình trong môi trường này");
+            input.setDisable(true);
+        }
+        if (sendButton != null) {
+            sendButton.setDisable(true);
+        }
     }
 
     private void addBotMessage(String text) {

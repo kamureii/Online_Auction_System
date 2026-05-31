@@ -27,8 +27,10 @@ Server cần các biến môi trường hoặc system properties sau khi chạy 
 - `AUCTION_DB_URL` / `auction.db.url`
 - `AUCTION_DB_USER` / `auction.db.user`
 - `AUCTION_DB_PASSWORD` / `auction.db.password` bắt buộc, không có password mặc định trong source
+- `AUCTION_DB_AUTO_MIGRATE` / `auction.db.autoMigrate`, mặc định `true`, tự chạy `database/migrate.sql` khi server khởi động
 - `AUCTION_SMTP_HOST`, `AUCTION_SMTP_USER`, `AUCTION_SMTP_PASSWORD`, `AUCTION_SMTP_FROM` để gửi OTP qua email
 - `AUCTION_EMAIL_MOCK_CONSOLE=true` chỉ dùng cho demo local khi muốn in OTP ra console server
+- `GEMINI_API_KEY` / `gemini.api.key` để bật Trợ lý AI; nếu thiếu, AI sẽ tự hiển thị trạng thái tắt và không ảnh hưởng đấu giá
 
 File `.env` được hỗ trợ khi chạy local nhưng không được commit.
 
@@ -41,10 +43,22 @@ BidShift dùng 2 cổng:
 
 JAR nộp bài nằm ở `release/online-auction.jar`. Khi đang dev có thể thay bằng `target/online-auction.jar`.
 
-Trước khi chạy server trên một máy mới, cấu hình DB trong `.env` hoặc system properties và chạy migration nếu DB đã tồn tại:
+Khi server khởi động, hệ thống mặc định tự chạy migration DB idempotent từ `database/migrate.sql`. Nếu muốn tắt auto migration để chạy thủ công:
+
+```powershell
+java "-Dauction.db.autoMigrate=false" -jar release\online-auction.jar server
+```
+
+Lệnh migration thủ công khi cần:
 
 ```powershell
 mysql -h localhost -P 3306 -u root -p online_auction < database\migrate.sql
+```
+
+Có thể kiểm tra nhanh trạng thái SMTP/Gemini/auto migration qua REST sau khi server chạy:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8081/api/config/status
 ```
 
 ### 1. Server và client cùng một máy
