@@ -2,6 +2,9 @@
 
 Ứng dụng đấu giá trực tuyến viết bằng Java. Project gồm JavaFX client, socket server, REST API nhỏ cho chat/xác thực và MySQL làm nơi lưu dữ liệu.
 
+## Video Demo
+https://drive.google.com/file/d/1V2arADcDjkDwKBHprlKgSmqmkPVy7TsK/view?usp=sharing
+
 ## Công nghệ
 
 - Java 17
