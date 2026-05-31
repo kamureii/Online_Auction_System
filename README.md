@@ -34,17 +34,86 @@ File `.env` được hỗ trợ khi chạy local nhưng không được commit.
 
 ## Chạy ứng dụng
 
-Chạy server:
+BidShift dùng 2 cổng:
+
+- `8080`: socket server cho đăng nhập, đấu giá, checkout, realtime.
+- `8081`: REST API cho xác thực phụ trợ và AI chat.
+
+JAR nộp bài nằm ở `release/online-auction.jar`. Khi đang dev có thể thay bằng `target/online-auction.jar`.
+
+Trước khi chạy server trên một máy mới, cấu hình DB trong `.env` hoặc system properties và chạy migration nếu DB đã tồn tại:
 
 ```powershell
-java -jar target/online-auction.jar server
+mysql -h localhost -P 3306 -u root -p online_auction < database\migrate.sql
 ```
 
-Chạy client:
+### 1. Server và client cùng một máy
+
+Mở terminal 1 để chạy server:
 
 ```powershell
-java "-Dauction.server.host=14.177.166.233" "-Dauction.server.port=8080" "-Dauction.rest.port=8081" -jar .\target\online-auction.jar client
+java -jar release\online-auction.jar server
 ```
+
+Mở terminal 2 để chạy client trên cùng máy:
+
+```powershell
+java "-Dauction.server.host=127.0.0.1" "-Dauction.server.port=8080" "-Dauction.rest.port=8081" -jar release\online-auction.jar client
+```
+
+### 2. Server và client khác máy nhưng cùng mạng LAN/Wi-Fi
+
+Trên máy chạy server, lấy địa chỉ IPv4 LAN:
+
+```powershell
+ipconfig
+```
+
+Ví dụ máy server có IPv4 là `192.168.1.20`.
+
+Trên máy server, cho phép firewall inbound TCP `8080` và `8081`, rồi chạy:
+
+```powershell
+java -jar release\online-auction.jar server
+```
+
+Trên máy client trong cùng mạng, chạy:
+
+```powershell
+java "-Dauction.server.host=192.168.1.20" "-Dauction.server.port=8080" "-Dauction.rest.port=8081" -jar release\online-auction.jar client
+```
+
+Client không cần kết nối MySQL trực tiếp; chỉ máy server cần DB.
+
+### 3. Server và client khác mạng (port forwarding)
+
+Trên router của mạng đặt máy server:
+
+1. Gán IP LAN cố định cho máy server, ví dụ `192.168.1.20`.
+2. Forward TCP `8080` từ WAN về `192.168.1.20:8080`.
+3. Forward TCP `8081` từ WAN về `192.168.1.20:8081`.
+4. Mở Windows Firewall trên máy server cho TCP `8080` và `8081`.
+5. Lấy public IP hoặc cấu hình DDNS, ví dụ `203.0.113.10` hoặc `bidshift-demo.ddns.net`.
+
+Trên máy server:
+
+```powershell
+java -jar release\online-auction.jar server
+```
+
+Trên máy client ở mạng khác:
+
+```powershell
+java "-Dauction.server.host=203.0.113.10" "-Dauction.server.port=8080" "-Dauction.rest.port=8081" -jar release\online-auction.jar client
+```
+
+Nếu dùng DDNS:
+
+```powershell
+java "-Dauction.server.host=bidshift-demo.ddns.net" "-Dauction.server.port=8080" "-Dauction.rest.port=8081" -jar release\online-auction.jar client
+```
+
+Nếu client không kết nối được, kiểm tra theo thứ tự: server còn đang chạy, public IP/DDNS đúng, router đã forward cả `8080` và `8081`, firewall đã mở, và nhà mạng không chặn inbound port.
 
 ## Tài khoản demo
 
