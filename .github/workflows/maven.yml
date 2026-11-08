@@ -52,7 +52,7 @@ jobs:
         run: mvn -B clean verify
 
       - name: Upload jar
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: online-auction-jar
           path: target/online-auction.jar
