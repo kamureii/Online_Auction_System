@@ -506,3 +506,95 @@ SELECT a.id, i.seller_id, 'SELLER'
 FROM auction_sessions a
 JOIN items i ON a.item_id = i.id
 ON DUPLICATE KEY UPDATE room_role = VALUES(room_role);
+
+-- Index phục vụ scheduler và truy vấn đấu giá
+
+SET @index_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'auction_sessions'
+      AND INDEX_NAME = 'idx_auction_status_end'
+);
+SET @sql := IF(@index_exists = 0,
+    'CREATE INDEX idx_auction_status_end ON auction_sessions (status, end_time)',
+    'SELECT ''idx_auction_status_end already exists'' AS message'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @index_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'auction_sessions'
+      AND INDEX_NAME = 'idx_auction_status_start'
+);
+SET @sql := IF(@index_exists = 0,
+    'CREATE INDEX idx_auction_status_start ON auction_sessions (status, start_time)',
+    'SELECT ''idx_auction_status_start already exists'' AS message'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @index_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'bids'
+      AND INDEX_NAME = 'idx_bids_auction_amount'
+);
+SET @sql := IF(@index_exists = 0,
+    'CREATE INDEX idx_bids_auction_amount ON bids (auction_id, bid_amount)',
+    'SELECT ''idx_bids_auction_amount already exists'' AS message'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @index_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'auto_bids'
+      AND INDEX_NAME = 'idx_autobids_auction_active'
+);
+SET @sql := IF(@index_exists = 0,
+    'CREATE INDEX idx_autobids_auction_active ON auto_bids (auction_id, is_active)',
+    'SELECT ''idx_autobids_auction_active already exists'' AS message'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @index_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'cart_items'
+      AND INDEX_NAME = 'idx_cart_status_due'
+);
+SET @sql := IF(@index_exists = 0,
+    'CREATE INDEX idx_cart_status_due ON cart_items (status, payment_due_at)',
+    'SELECT ''idx_cart_status_due already exists'' AS message'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @index_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'notifications'
+      AND INDEX_NAME = 'idx_notifications_user_created'
+);
+SET @sql := IF(@index_exists = 0,
+    'CREATE INDEX idx_notifications_user_created ON notifications (user_id, created_at)',
+    'SELECT ''idx_notifications_user_created already exists'' AS message'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
