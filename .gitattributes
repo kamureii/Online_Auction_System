@@ -1,0 +1,6 @@
+* text=auto
+*.png binary
+*.jar binary
+*.pdf binary
+*.sql text eol=lf
+*.yml text eol=lf
