@@ -31,7 +31,6 @@ jobs:
       AUCTION_DB_USER: root
       AUCTION_DB_PASSWORD: ci-only-password
       AUCTION_DB_TESTS: "true"
-      AUCTION_DB_CONCURRENCY_TEST: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v4

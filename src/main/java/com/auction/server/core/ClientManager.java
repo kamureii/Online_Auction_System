@@ -62,7 +62,4 @@ public class ClientManager {
         }
     }
 
-    public int getConnectedCount() {
-        return connectedClients.size();
-    }
 }

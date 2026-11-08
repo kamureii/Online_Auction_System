@@ -23,8 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class BidDAOConcurrencyTest {
     @Test
     void simultaneousEqualBidsCommitOnlyOnceWhenDatabaseTestIsEnabled() throws Exception {
-        assumeTrue("true".equalsIgnoreCase(System.getenv("AUCTION_DB_CONCURRENCY_TEST")),
-                "Set AUCTION_DB_CONCURRENCY_TEST=true to run the MySQL concurrency test.");
+        assumeTrue("true".equalsIgnoreCase(System.getenv("AUCTION_DB_TESTS")),
+                "Set AUCTION_DB_TESTS=true to run the MySQL concurrency test.");
 
         int sellerId = 0;
         int bidderAId = 0;

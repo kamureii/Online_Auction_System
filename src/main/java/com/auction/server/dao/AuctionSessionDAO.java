@@ -165,29 +165,6 @@ public class AuctionSessionDAO {
     }
 
     /**
-     * Lấy các phiên đang RUNNING.
-     */
-    public static List<AuctionSession> getActiveAuctions() {
-        List<AuctionSession> list = new ArrayList<>();
-        String sql = "SELECT a.*, i.name AS item_name, i.description AS item_description, i.category AS item_category, i.image_path AS item_image_path, " +
-                "i.seller_id AS seller_id, u.username AS winner_name, " +
-                "(SELECT COUNT(*) FROM bids b WHERE b.auction_id = a.id) AS bid_count " +
-                "FROM auction_sessions a JOIN items i ON a.item_id = i.id " +
-                "LEFT JOIN users u ON a.winner_id = u.id " +
-                "WHERE a.status = 'RUNNING' ORDER BY a.end_time ASC";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                list.add(mapResultSet(rs));
-            }
-        } catch (SQLException e) {
-            log.error("Lỗi lấy phiên đấu giá active: " + e.getMessage());
-        }
-        return list;
-    }
-
-    /**
      * Lấy phiên đấu giá theo ID.
      */
     public static AuctionSession getAuctionById(int id) {
@@ -203,27 +180,6 @@ public class AuctionSessionDAO {
             if (rs.next()) return mapResultSet(rs);
         } catch (SQLException e) {
             log.error("Lỗi lấy phiên đấu giá: " + e.getMessage());
-        }
-        return null;
-    }
-
-    /**
-     * Lấy phiên đấu giá active cho một item.
-     */
-    public static AuctionSession getActiveAuctionByItemId(int itemId) {
-        String sql = "SELECT a.*, i.name AS item_name, i.description AS item_description, i.category AS item_category, i.image_path AS item_image_path, " +
-                "i.seller_id AS seller_id, u.username AS winner_name, " +
-                "(SELECT COUNT(*) FROM bids b WHERE b.auction_id = a.id) AS bid_count " +
-                "FROM auction_sessions a JOIN items i ON a.item_id = i.id " +
-                "LEFT JOIN users u ON a.winner_id = u.id " +
-                "WHERE a.item_id = ? AND a.status IN ('OPEN', 'RUNNING') ORDER BY a.id DESC LIMIT 1";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, itemId);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) return mapResultSet(rs);
-        } catch (SQLException e) {
-            log.error("Lỗi lấy phiên active theo item: " + e.getMessage());
         }
         return null;
     }
@@ -345,19 +301,6 @@ public class AuctionSessionDAO {
             }
         } catch (SQLException e) {
             log.error("Lỗi đánh dấu PAID: {}", e.getMessage());
-            return false;
-        }
-    }
-
-    public static boolean markCheckoutPending(int auctionId, Timestamp dueAt) {
-        String sql = "UPDATE auction_sessions SET checkout_status = 'PENDING', payment_due_at = ? WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setTimestamp(1, dueAt);
-            ps.setInt(2, auctionId);
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            log.error("Loi cap nhat checkout pending: " + e.getMessage());
             return false;
         }
     }

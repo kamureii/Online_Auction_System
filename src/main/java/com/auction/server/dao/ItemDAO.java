@@ -47,22 +47,6 @@ public class ItemDAO {
         return null;
     }
 
-    public static List<Item> getItemsBySellerId(int sellerId) {
-        List<Item> items = new ArrayList<>();
-        String sql = "SELECT * FROM items WHERE seller_id = ? ORDER BY id DESC";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, sellerId);
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                items.add(mapResultSetToItem(rs));
-            }
-        } catch (SQLException e) {
-            log.error("Lỗi lấy items theo seller: " + e.getMessage());
-        }
-        return items;
-    }
-
     public static int addItem(Item item) {
         String sql = "INSERT INTO items (seller_id, name, description, category, starting_price, min_increment, current_price, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -115,19 +99,6 @@ public class ItemDAO {
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             log.error("Lỗi xóa item: " + e.getMessage());
-            return false;
-        }
-    }
-
-    public static boolean updateCurrentPrice(int itemId, double newPrice) {
-        String sql = "UPDATE items SET current_price = ? WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setDouble(1, newPrice);
-            ps.setInt(2, itemId);
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            log.error("Lỗi cập nhật giá: " + e.getMessage());
             return false;
         }
     }
