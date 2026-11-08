@@ -1,165 +1,136 @@
 # BidShift - Online Auction System
 
-Ứng dụng đấu giá trực tuyến viết bằng Java. Project gồm JavaFX client, socket server, REST API nhỏ cho chat/xác thực và MySQL làm nơi lưu dữ liệu.
+Ứng dụng đấu giá trực tuyến viết bằng Java. Gồm JavaFX client, socket server, REST API nhỏ (xác thực phụ trợ, AI chat) và MySQL.
 
 ## Video Demo
 https://drive.google.com/file/d/1V2arADcDjkDwKBHprlKgSmqmkPVy7TsK/view?usp=sharing
 
 ## Công nghệ
 
-- Java 17
-- JavaFX
-- MySQL
-- Socket TCP
-- REST API
-- Maven
-- Gson
+Java 17 · JavaFX · MySQL (HikariCP) · Socket TCP · REST (`com.sun.net.httpserver`) · Maven · Gson · SLF4J
 
-## Build
+## Cấu trúc mã nguồn
 
-```powershell
-mvn clean package
+```
+src/main/java/com/auction
+├── Main.java                 điểm vào của jar: `server` hoặc `client`
+├── client/                   JavaFX client
+│   ├── controller/           màn hình (Login, Register, Dashboard, AuctionRoom, Admin)
+│   ├── service/ServerConnector   kết nối socket + REST tới server
+│   ├── navigation/ ui/ util/     điều hướng scene, widget, tiện ích (Async chạy việc mạng ngoài UI thread)
+├── server/
+│   ├── ServerMain.java       khởi động: migrate DB, scheduler, REST, socket server
+│   ├── core/                 ClientHandler (kết nối), ClientManager (broadcast), AuctionScheduler,
+│   │                         AuctionFinalizer, AutoBidManager
+│   ├── handler/              ActionRouter + các nhóm action: Auth, Item, Auction, Bid, Account, Order, Admin
+│   ├── dao/                  truy cập MySQL (DatabaseConnection là connection pool)
+│   ├── auth/ security/       phiên đăng nhập, OTP, băm mật khẩu, giới hạn tần suất
+│   ├── rest/ email/          REST API, gửi email OTP
+└── shared/                   model, DTO, giao thức (Request/Response/ServerMessage), cấu hình, validator
+database/                     init.sql (schema), migrate.sql (idempotent), seed-demo.sql (chỉ demo local)
 ```
 
-File JAR dùng để nộp bài nằm tại `release/online-auction.jar`.
+Thêm một chức năng server mới = viết một method trong nhóm `*Actions` tương ứng và đăng ký action trong `register(router)`.
 
-## Kiểm thử UI nhanh
-
-Chạy toàn bộ unit/smoke test mặc định:
+## Build và kiểm thử
 
 ```powershell
+mvn clean package      # tạo target/online-auction.jar
+mvn test               # unit test + JavaFX smoke test (test MySQL tự bỏ qua nếu chưa bật)
+```
+
+File jar **không** được commit vào git. Lấy bản build từ `target/`, từ artifact của GitHub Actions, hoặc từ GitHub Releases.
+
+### Test với MySQL thật
+
+Một số test chạy trên MySQL thật (BIN, anti-sniping, chốt phiên, đặt giá đồng thời). Hãy dùng một schema riêng, **không** trỏ vào database đang chạy thật:
+
+```powershell
+mysql -u root -p -e "CREATE DATABASE online_auction_test"
+(Get-Content database\init.sql) -replace 'online_auction','online_auction_test' | mysql -u root -p
+$env:AUCTION_DB_URL = "jdbc:mysql://localhost:3306/online_auction_test"
+$env:AUCTION_DB_TESTS = "true"
+$env:AUCTION_DB_CONCURRENCY_TEST = "true"
 mvn test
 ```
 
-JavaFX visual snapshot là test opt-in, dùng khi cần kiểm tra nhanh layout các màn chính ở kích thước `1366 x 768`:
+GitHub Actions tự dựng MySQL và chạy toàn bộ các test này cho mỗi push/PR.
+
+### JavaFX visual snapshot
 
 ```powershell
 mvn "-Dtest=JavaFxVisualSnapshotTest" "-Dauction.ui.snapshots=true" test
 ```
 
-Ảnh sẽ được xuất vào `target/ui-snapshots`. Bộ snapshot hiện gồm login, register, dashboard light/dark, account profile, giỏ hàng, thông báo, đơn bán, đăng bán, checkout address/ATM/invoice, auction room light/dark, auction room với tên dài và admin panel. Đây là bước hỗ trợ visual QA; checkout thật vẫn cần smoke thủ công với tài khoản demo và dữ liệu server/DB.
+Ảnh được xuất vào `target/ui-snapshots` (kích thước `1366 x 768`).
 
 ## Cấu hình runtime
 
-Server cần các biến môi trường hoặc system properties sau khi chạy ngoài IDE:
+Đặt bằng biến môi trường, system property (`-Dkey=value`), hoặc file `.env` ở thư mục gốc (đã được gitignore, **không commit**).
 
-- `AUCTION_DB_URL` / `auction.db.url`
-- `AUCTION_DB_USER` / `auction.db.user`
-- `AUCTION_DB_PASSWORD` / `auction.db.password` bắt buộc, không có password mặc định trong source
-- `AUCTION_DB_AUTO_MIGRATE` / `auction.db.autoMigrate`, mặc định `true`, tự chạy `database/migrate.sql` khi server khởi động
-- `AUCTION_SMTP_HOST`, `AUCTION_SMTP_USER`, `AUCTION_SMTP_PASSWORD`, `AUCTION_SMTP_FROM` để gửi OTP qua email
-- `AUCTION_EMAIL_MOCK_CONSOLE=true` chỉ dùng cho demo local khi muốn in OTP ra console server
-- `GEMINI_API_KEY` / `gemini.api.key` để bật Trợ lý AI; nếu thiếu, AI sẽ tự hiển thị trạng thái tắt và không ảnh hưởng đấu giá
+| Biến môi trường | Ý nghĩa |
+|---|---|
+| `AUCTION_DB_URL`, `AUCTION_DB_USER` | Kết nối MySQL (mặc định `jdbc:mysql://localhost:3306/online_auction`, user `root`) |
+| `AUCTION_DB_PASSWORD` | **Bắt buộc**, không có mật khẩu mặc định trong source |
+| `AUCTION_DB_POOL_SIZE` | Số kết nối tối đa trong pool (mặc định 20) |
+| `AUCTION_DB_AUTO_MIGRATE` | Mặc định `true`: tự chạy `database/migrate.sql` khi server khởi động |
+| `AUCTION_SERVER_PORT`, `AUCTION_REST_PORT` | Cổng socket (8080) và REST (8081) |
+| `AUCTION_SERVER_MAX_CLIENTS` | Số kết nối socket đồng thời tối đa (mặc định 500) |
+| `AUCTION_SMTP_HOST/USER/PASSWORD/FROM` (+ `_PORT`, `_STARTTLS`, `_SSL`) | Gửi OTP qua email |
+| `AUCTION_EMAIL_MOCK_CONSOLE` | Mặc định `false`. Đặt `true` **chỉ khi demo local** để in OTP ra console |
+| `GEMINI_API_KEY` | Bật Trợ lý AI (tùy chọn). Thiếu thì AI tự tắt, không ảnh hưởng đấu giá |
+| `AUCTION_TLS_ENABLED` | `true` để bật TLS cho cả socket và REST (xem bên dưới) |
 
-File `.env` được hỗ trợ khi chạy local nhưng không được commit.
+Client đọc `AUCTION_SERVER_HOST`, `AUCTION_SERVER_PORT`, `AUCTION_REST_PORT` (hoặc `-Dauction.server.host=...`).
+`release/application.properties` chỉ là mẫu trỏ về `127.0.0.1`.
+
+## Khởi tạo database
+
+```powershell
+mysql -u root -p < database\init.sql         # schema mới
+mysql -u root -p < database\seed-demo.sql    # (tùy chọn) dữ liệu demo, CHỈ cho máy local
+```
+
+Server tự chạy `migrate.sql` (idempotent) mỗi lần khởi động và băm lại mọi mật khẩu plaintext còn sót từ dữ liệu cũ.
+Tắt auto migration: `java "-Dauction.db.autoMigrate=false" -jar online-auction.jar server`.
 
 ## Chạy ứng dụng
 
-BidShift dùng 2 cổng:
-
-- `8080`: socket server cho đăng nhập, đấu giá, checkout, realtime.
-- `8081`: REST API cho xác thực phụ trợ và AI chat.
-
-JAR nộp bài nằm ở `release/online-auction.jar`. Khi đang dev có thể thay bằng `target/online-auction.jar`.
-
-Khi server khởi động, hệ thống mặc định tự chạy migration DB idempotent từ `database/migrate.sql`. Nếu muốn tắt auto migration để chạy thủ công:
+BidShift dùng 2 cổng: `8080` (socket: đăng nhập, đấu giá, checkout, realtime) và `8081` (REST: reset mật khẩu, AI chat, trạng thái cấu hình).
 
 ```powershell
-java "-Dauction.db.autoMigrate=false" -jar release\online-auction.jar server
+java -jar target\online-auction.jar server
+java "-Dauction.server.host=127.0.0.1" -jar target\online-auction.jar client
 ```
 
-Lệnh migration thủ công khi cần:
+Client ở máy khác: mở firewall TCP `8080`/`8081` trên máy server, rồi đặt `-Dauction.server.host=<IP LAN / IP công khai / DDNS>`.
+Nếu client ở ngoài mạng, forward cả hai cổng trên router. Client không cần truy cập MySQL; chỉ server cần.
 
-```powershell
-mysql -h localhost -P 3306 -u root -p online_auction < database\migrate.sql
-```
+Kiểm tra trạng thái SMTP/Gemini/migration: `Invoke-RestMethod http://127.0.0.1:8081/api/config/status`
 
-Có thể kiểm tra nhanh trạng thái SMTP/Gemini/auto migration qua REST sau khi server chạy:
+## Bảo mật
 
-```powershell
-Invoke-RestMethod http://127.0.0.1:8081/api/config/status
-```
+- Mật khẩu băm PBKDF2-HMAC-SHA256 (600.000 vòng); hash cũ yếu hơn được nâng cấp khi đăng nhập.
+- Đăng nhập sai nhiều lần sẽ bị khoá tạm theo tài khoản và theo IP; đăng ký, reset mật khẩu, gửi OTP, AI chat đều có giới hạn tần suất.
+- Request socket tối đa 256 KB/dòng, body REST tối đa 64 KB, kết nối idle quá 3 phút bị ngắt (client tự gửi `PING` và tự đăng nhập lại bằng token phiên khi reconnect).
+- `/api/chat` yêu cầu token phiên (`Authorization: Bearer ...`) do server cấp khi đăng nhập.
+- **Mặc định socket và REST KHÔNG mã hoá.** Khi chạy qua Internet hãy bật TLS:
 
-### 1. Server và client cùng một máy
+  ```powershell
+  # tạo keystore tự ký (thay bằng chứng chỉ thật khi triển khai nghiêm túc)
+  keytool -genkeypair -alias bidshift -keyalg RSA -keysize 2048 -validity 365 -keystore server.p12 -storetype PKCS12
+  java -Dauction.tls.enabled=true -Djavax.net.ssl.keyStore=server.p12 -Djavax.net.ssl.keyStorePassword=*** -jar online-auction.jar server
+  # client cần tin cậy chứng chỉ đó
+  java -Dauction.tls.enabled=true -Djavax.net.ssl.trustStore=server.p12 -Djavax.net.ssl.trustStorePassword=*** -jar online-auction.jar client
+  ```
 
-Mở terminal 1 để chạy server:
-
-```powershell
-java -jar release\online-auction.jar server
-```
-
-Mở terminal 2 để chạy client trên cùng máy:
-
-```powershell
-java "-Dauction.server.host=127.0.0.1" "-Dauction.server.port=8080" "-Dauction.rest.port=8081" -jar release\online-auction.jar client
-```
-
-### 2. Server và client khác máy nhưng cùng mạng LAN/Wi-Fi
-
-Trên máy chạy server, lấy địa chỉ IPv4 LAN:
-
-```powershell
-ipconfig
-```
-
-Ví dụ máy server có IPv4 là `192.168.1.20`.
-
-Trên máy server, cho phép firewall inbound TCP `8080` và `8081`, rồi chạy:
-
-```powershell
-java -jar release\online-auction.jar server
-```
-
-Trên máy client trong cùng mạng, chạy:
-
-```powershell
-java "-Dauction.server.host=192.168.1.20" "-Dauction.server.port=8080" "-Dauction.rest.port=8081" -jar release\online-auction.jar client
-```
-
-Client không cần kết nối MySQL trực tiếp; chỉ máy server cần DB.
-
-### 3. Server và client khác mạng (port forwarding)
-
-Trên router của mạng đặt máy server:
-
-1. Gán IP LAN cố định cho máy server, ví dụ `192.168.1.20`.
-2. Forward TCP `8080` từ WAN về `192.168.1.20:8080`.
-3. Forward TCP `8081` từ WAN về `192.168.1.20:8081`.
-4. Mở Windows Firewall trên máy server cho TCP `8080` và `8081`.
-5. Lấy public IP hoặc cấu hình DDNS, ví dụ `203.0.113.10` hoặc `bidshift-demo.ddns.net`.
-
-Trên máy server:
-
-```powershell
-java -jar release\online-auction.jar server
-```
-
-Trên máy client ở mạng khác:
-
-```powershell
-java "-Dauction.server.host=203.0.113.10" "-Dauction.server.port=8080" "-Dauction.rest.port=8081" -jar release\online-auction.jar client
-```
-
-Nếu dùng DDNS:
-
-```powershell
-java "-Dauction.server.host=bidshift-demo.ddns.net" "-Dauction.server.port=8080" "-Dauction.rest.port=8081" -jar release\online-auction.jar client
-```
-
-Nếu client không kết nối được, kiểm tra theo thứ tự: server còn đang chạy, public IP/DDNS đúng, router đã forward cả `8080` và `8081`, firewall đã mở, và nhà mạng không chặn inbound port.
+- Không commit `.env`, keystore, hay địa chỉ máy chủ thật. Xem [SECURITY.md](SECURITY.md).
 
 ## Tài khoản demo
 
-- `admin / 123456`
-- `seller1 / 123456`
-- `bidder1 / 123456`
+Chỉ có sau khi nạp `database/seed-demo.sql` (local): `admin`, `seller1`, `bidder1`, mật khẩu `Demo@12345`.
+Không nạp file này trên server đặt ở Internet.
 
 ## Chức năng chính
 
-- Đăng ký, đăng nhập
-- Quản lý sản phẩm đấu giá
-- Đặt giá realtime
-- Auto-bid
-- Giỏ hàng và checkout
-- Admin panel
-- Scheduler tự động cập nhật trạng thái phiên đấu giá
+Đăng ký/đăng nhập · đăng bán và quản lý sản phẩm · đặt giá realtime · mua ngay (BIN) · auto-bid kiểu proxy · chống "chốt giá phút chót" (anti-sniping) · giỏ hàng, checkout, theo dõi giao hàng · điểm uy tín và khoá đấu giá khi quá hạn thanh toán · admin panel · scheduler tự chuyển trạng thái phiên.

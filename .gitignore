@@ -13,7 +13,6 @@ GeneratePDFs.py
 GenerateUML.py
 SplitProjectUML.py
 TestKroki.py
-{console.error(e.message)
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
@@ -54,3 +53,13 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Build output & release artifacts (phát hành qua GitHub Releases, không commit jar) ###
+release/*.jar
+
+### Secrets ###
+.env
+.env.*
+*.jks
+*.p12
+*.keystore

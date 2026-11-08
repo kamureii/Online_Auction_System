@@ -6,9 +6,32 @@ on:
   pull_request:
     branches: [ main, master ]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-only-password
+          MYSQL_DATABASE: online_auction_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-only-password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      AUCTION_DB_URL: jdbc:mysql://127.0.0.1:3306/online_auction_test
+      AUCTION_DB_USER: root
+      AUCTION_DB_PASSWORD: ci-only-password
+      AUCTION_DB_TESTS: "true"
+      AUCTION_DB_CONCURRENCY_TEST: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,5 +43,16 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: Run tests
-        run: mvn -B clean test
+      - name: Create test schema
+        run: |
+          sed 's/online_auction/online_auction_test/g' database/init.sql \
+            | mysql --protocol=tcp -h 127.0.0.1 -uroot -pci-only-password
+
+      - name: Run tests (including MySQL integration tests)
+        run: mvn -B clean verify
+
+      - name: Upload jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: online-auction-jar
+          path: target/online-auction.jar
