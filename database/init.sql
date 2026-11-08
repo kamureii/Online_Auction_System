@@ -1,3 +1,4 @@
+-- Schema đầy đủ cho database mới. Dữ liệu mẫu nằm ở database/seed-demo.sql (chỉ dùng cho demo local).
 CREATE DATABASE IF NOT EXISTS online_auction
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_unicode_ci;
@@ -55,7 +56,9 @@ CREATE TABLE IF NOT EXISTS auction_sessions (
     winner_id INT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
-    FOREIGN KEY (winner_id) REFERENCES users(id) ON DELETE SET NULL
+    FOREIGN KEY (winner_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_auction_status_end (status, end_time),
+    INDEX idx_auction_status_start (status, start_time)
 );
 
 CREATE TABLE IF NOT EXISTS bids (
@@ -65,7 +68,8 @@ CREATE TABLE IF NOT EXISTS bids (
     bid_amount DECIMAL(15, 2) NOT NULL,
     bid_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (auction_id) REFERENCES auction_sessions(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_bids_auction_amount (auction_id, bid_amount)
 );
 
 CREATE TABLE IF NOT EXISTS auto_bids (
@@ -77,7 +81,8 @@ CREATE TABLE IF NOT EXISTS auto_bids (
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (auction_id) REFERENCES auction_sessions(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_autobids_auction_active (auction_id, is_active)
 );
 
 CREATE TABLE IF NOT EXISTS payment_profiles (
@@ -114,7 +119,8 @@ CREATE TABLE IF NOT EXISTS notifications (
     reference_id INT DEFAULT NULL,
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_notifications_user_created (user_id, created_at)
 );
 
 CREATE TABLE IF NOT EXISTS cart_items (
@@ -136,7 +142,8 @@ CREATE TABLE IF NOT EXISTS cart_items (
     delivered_at DATETIME DEFAULT NULL,
     FOREIGN KEY (auction_id) REFERENCES auction_sessions(id) ON DELETE CASCADE,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
-    FOREIGN KEY (bidder_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (bidder_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_cart_status_due (status, payment_due_at)
 );
 
 CREATE TABLE IF NOT EXISTS auction_participants (
@@ -148,30 +155,3 @@ CREATE TABLE IF NOT EXISTS auction_participants (
     FOREIGN KEY (auction_id) REFERENCES auction_sessions(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
-
-INSERT INTO users (username, email, email_verified, email_verified_at, password, fullname, role)
-VALUES
-    ('admin', 'admin@auction.com', TRUE, NOW(), '123456', 'Quan Tri Vien', 'ADMIN'),
-    ('seller1', 'seller1@auction.com', TRUE, NOW(), '123456', 'Nguoi Ban 1', 'USER'),
-    ('bidder1', 'bidder1@auction.com', TRUE, NOW(), '123456', 'Nguoi Mua 1', 'USER')
-ON DUPLICATE KEY UPDATE username = VALUES(username);
-
-INSERT INTO items (id, seller_id, name, description, category, starting_price, min_increment, current_price)
-VALUES
-    (1, 2, 'iPhone 15 Pro Max', 'Dien thoai Apple iPhone 15 Pro Max 256GB', 'ELECTRONICS', 25000000, 500000, 25000000),
-    (2, 2, 'Tranh Son Dau Phong Canh', 'Tranh son dau ve tay phong canh Viet Nam', 'ART', 5000000, 200000, 5000000),
-    (3, 2, 'Honda Civic 2024', 'Xe Honda Civic RS 2024 moi 100%', 'VEHICLE', 800000000, 5000000, 800000000)
-ON DUPLICATE KEY UPDATE name = VALUES(name);
-
-INSERT INTO auction_sessions (id, item_id, start_time, end_time, status, current_highest_bid, bin_price)
-VALUES
-    (1, 1, NOW(), DATE_ADD(NOW(), INTERVAL 24 HOUR), 'RUNNING', 25000000, 30000000),
-    (2, 2, NOW(), DATE_ADD(NOW(), INTERVAL 48 HOUR), 'RUNNING', 5000000, 8000000),
-    (3, 3, NOW(), DATE_ADD(NOW(), INTERVAL 72 HOUR), 'RUNNING', 800000000, 900000000)
-ON DUPLICATE KEY UPDATE current_highest_bid = VALUES(current_highest_bid), bin_price = VALUES(bin_price);
-
-INSERT INTO auction_participants (auction_id, user_id, room_role)
-SELECT a.id, i.seller_id, 'SELLER'
-FROM auction_sessions a
-JOIN items i ON a.item_id = i.id
-ON DUPLICATE KEY UPDATE room_role = VALUES(room_role);
