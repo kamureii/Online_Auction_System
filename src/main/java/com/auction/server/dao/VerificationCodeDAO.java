@@ -7,6 +7,8 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 
 public class VerificationCodeDAO {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(VerificationCodeDAO.class);
+
     public boolean createEmailCode(int userId, String target, String codeHash, Timestamp expiresAt) {
         return createCode(userId, "EMAIL", target, codeHash, expiresAt);
     }
@@ -40,7 +42,7 @@ public class VerificationCodeDAO {
             conn.commit();
             return true;
         } catch (SQLException e) {
-            System.err.println("Lỗi tạo mã OTP: " + e.getMessage());
+            log.error("Lỗi tạo mã OTP: " + e.getMessage());
             return false;
         }
     }
@@ -75,7 +77,7 @@ public class VerificationCodeDAO {
                 );
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy mã OTP: " + e.getMessage());
+            log.error("Lỗi lấy mã OTP: " + e.getMessage());
         }
         return null;
     }
@@ -87,7 +89,7 @@ public class VerificationCodeDAO {
             ps.setInt(1, codeId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Lỗi cập nhật số lần nhập OTP: " + e.getMessage());
+            log.error("Lỗi cập nhật số lần nhập OTP: " + e.getMessage());
             return false;
         }
     }
@@ -99,7 +101,7 @@ public class VerificationCodeDAO {
             ps.setInt(1, codeId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Lỗi đánh dấu OTP đã dùng: " + e.getMessage());
+            log.error("Lỗi đánh dấu OTP đã dùng: " + e.getMessage());
             return false;
         }
     }

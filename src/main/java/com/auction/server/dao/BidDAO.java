@@ -1,5 +1,6 @@
 package com.auction.server.dao;
 
+import com.auction.server.core.AuctionTimingRules;
 import com.auction.shared.model.Bid;
 
 import java.sql.Connection;
@@ -11,6 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BidDAO {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BidDAO.class);
+
     public enum BidFailureReason {
         NONE,
         NOT_FOUND,
@@ -34,11 +37,12 @@ public class BidDAO {
         private final String itemName;
         private final boolean binTriggered;
         private final double binPrice;
+        private final Timestamp newEndTime;
 
         private PlaceBidResult(boolean success, BidFailureReason reason, String message,
                                double bidAmount, double previousHighestBid, double minRequired,
                                int itemId, int sellerId, String itemName,
-                               boolean binTriggered, double binPrice) {
+                               boolean binTriggered, double binPrice, Timestamp newEndTime) {
             this.success = success;
             this.reason = reason;
             this.message = message;
@@ -50,14 +54,21 @@ public class BidDAO {
             this.itemName = itemName;
             this.binTriggered = binTriggered;
             this.binPrice = binPrice;
+            this.newEndTime = newEndTime;
         }
 
         static PlaceBidResult success(double bidAmount, double previousHighestBid,
                                       int itemId, int sellerId, String itemName,
                                       boolean binTriggered, double binPrice) {
+            return success(bidAmount, previousHighestBid, itemId, sellerId, itemName, binTriggered, binPrice, null);
+        }
+
+        static PlaceBidResult success(double bidAmount, double previousHighestBid,
+                                      int itemId, int sellerId, String itemName,
+                                      boolean binTriggered, double binPrice, Timestamp newEndTime) {
             return new PlaceBidResult(true, BidFailureReason.NONE, "SUCCESS",
                     bidAmount, previousHighestBid, 0, itemId, sellerId, itemName,
-                    binTriggered, binPrice);
+                    binTriggered, binPrice, newEndTime);
         }
 
         static PlaceBidResult failure(BidFailureReason reason, String message,
@@ -65,7 +76,7 @@ public class BidDAO {
                                       int itemId, int sellerId, String itemName) {
             return new PlaceBidResult(false, reason, message,
                     0, previousHighestBid, minRequired, itemId, sellerId, itemName,
-                    false, 0);
+                    false, 0, null);
         }
 
         public boolean isSuccess() { return success; }
@@ -79,6 +90,8 @@ public class BidDAO {
         public String getItemName() { return itemName; }
         public boolean isBinTriggered() { return binTriggered; }
         public double getBinPrice() { return binPrice; }
+        /** Thời điểm kết thúc mới nếu bid này kích hoạt gia hạn anti-sniping, ngược lại null. */
+        public Timestamp getNewEndTime() { return newEndTime; }
     }
 
     public static String placeBid(int auctionId, int userId, double bidAmount) {
@@ -93,6 +106,7 @@ public class BidDAO {
         String updateAuctionSql = "UPDATE auction_sessions SET current_highest_bid = ? WHERE id = ?";
         String finishByBinSql = "UPDATE auction_sessions SET winner_id = ?, status = 'FINISHED', end_time = NOW() WHERE id = ?";
         String updateItemSql = "UPDATE items SET current_price = ? WHERE id = ?";
+        String extendEndSql = "UPDATE auction_sessions SET end_time = ? WHERE id = ?";
 
         Connection conn = null;
         try {
@@ -143,46 +157,58 @@ public class BidDAO {
                         currentHighestBid, minRequired, itemId, sellerId, itemName);
             }
 
+            // Mua ngay: người thắng trả đúng giá BIN, không trả cao hơn số tiền đã nhập.
+            boolean binTriggered = shouldTriggerBin(binPrice, bidAmount);
+            double recordedAmount = effectiveBidAmount(binPrice, bidAmount);
+
             try (PreparedStatement ps = conn.prepareStatement(insertBidSql)) {
                 ps.setInt(1, auctionId);
                 ps.setInt(2, userId);
-                ps.setDouble(3, bidAmount);
+                ps.setDouble(3, recordedAmount);
                 ps.executeUpdate();
             }
 
             try (PreparedStatement ps = conn.prepareStatement(updateAuctionSql)) {
-                ps.setDouble(1, bidAmount);
+                ps.setDouble(1, recordedAmount);
                 ps.setInt(2, auctionId);
                 ps.executeUpdate();
             }
 
             try (PreparedStatement ps = conn.prepareStatement(updateItemSql)) {
-                ps.setDouble(1, bidAmount);
+                ps.setDouble(1, recordedAmount);
                 ps.setInt(2, itemId);
                 ps.executeUpdate();
             }
 
-            boolean binTriggered = shouldTriggerBin(binPrice, bidAmount);
+            Timestamp newEndTime = null;
             if (binTriggered) {
                 try (PreparedStatement ps = conn.prepareStatement(finishByBinSql)) {
                     ps.setInt(1, userId);
                     ps.setInt(2, auctionId);
                     ps.executeUpdate();
                 }
+            } else if (AuctionTimingRules.shouldExtendForAntiSniping(endTime, System.currentTimeMillis())) {
+                // Gia hạn trong cùng transaction với bid để scheduler không chốt phiên ở giữa hai bước.
+                newEndTime = AuctionTimingRules.extendedEndTime(endTime);
+                try (PreparedStatement ps = conn.prepareStatement(extendEndSql)) {
+                    ps.setTimestamp(1, newEndTime);
+                    ps.setInt(2, auctionId);
+                    ps.executeUpdate();
+                }
             }
 
             conn.commit();
-            return PlaceBidResult.success(bidAmount, currentHighestBid, itemId, sellerId, itemName,
-                    binTriggered, binPrice);
+            return PlaceBidResult.success(recordedAmount, currentHighestBid, itemId, sellerId, itemName,
+                    binTriggered, binPrice, newEndTime);
         } catch (SQLException e) {
             if (conn != null) {
                 try {
                     conn.rollback();
                 } catch (SQLException ex) {
-                    System.err.println("Lỗi rollback khi đặt giá: " + ex.getMessage());
+                    log.error("Lỗi rollback khi đặt giá: " + ex.getMessage());
                 }
             }
-            System.err.println("Lỗi đặt giá: " + e.getMessage());
+            log.error("Lỗi đặt giá: " + e.getMessage());
             return PlaceBidResult.failure(BidFailureReason.SYSTEM_ERROR,
                     "Loi he thong khi dat gia. Vui long thu lai.", 0, 0, 0, 0, "");
         } finally {
@@ -191,7 +217,7 @@ public class BidDAO {
                     conn.setAutoCommit(true);
                     conn.close();
                 } catch (SQLException e) {
-                    System.err.println("Lỗi đóng kết nối sau khi đặt giá: " + e.getMessage());
+                    log.error("Lỗi đóng kết nối sau khi đặt giá: " + e.getMessage());
                 }
             }
         }
@@ -204,6 +230,10 @@ public class BidDAO {
         return reason == BidFailureReason.NONE
                 ? "SUCCESS"
                 : validationMessage(reason, status, currentHighestBid, minIncrement);
+    }
+
+    static double effectiveBidAmount(double binPrice, double bidAmount) {
+        return shouldTriggerBin(binPrice, bidAmount) ? binPrice : bidAmount;
     }
 
     static boolean shouldTriggerBin(double binPrice, double bidAmount) {
@@ -262,7 +292,7 @@ public class BidDAO {
                 bids.add(bid);
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy lịch sử bid: " + e.getMessage());
+            log.error("Lỗi lấy lịch sử bid: " + e.getMessage());
         }
         return bids;
     }
@@ -275,7 +305,7 @@ public class BidDAO {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return rs.getDouble("current_highest_bid");
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy giá cao nhất: " + e.getMessage());
+            log.error("Lỗi lấy giá cao nhất: " + e.getMessage());
         }
         return 0;
     }
@@ -288,7 +318,7 @@ public class BidDAO {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return rs.getInt("user_id");
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy người đặt giá cao nhất: " + e.getMessage());
+            log.error("Lỗi lấy người đặt giá cao nhất: " + e.getMessage());
         }
         return -1;
     }

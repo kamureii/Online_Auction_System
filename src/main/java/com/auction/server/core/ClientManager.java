@@ -1,8 +1,10 @@
 package com.auction.server.core;
 
-import com.auction.shared.observer.AuctionEvent;
 import com.auction.shared.network.ServerMessage;
+import com.auction.shared.observer.AuctionEvent;
 import com.google.gson.Gson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,31 +13,31 @@ import java.util.concurrent.ConcurrentHashMap;
  * Singleton giữ danh sách client đang online và phát event realtime cho các controller.
  */
 public class ClientManager {
-    private static ClientManager instance;
+    private static final Logger log = LoggerFactory.getLogger(ClientManager.class);
+    private static final ClientManager INSTANCE = new ClientManager();
+
     private final Set<ClientHandler> connectedClients = ConcurrentHashMap.newKeySet();
     private final Gson gson = new Gson();
 
     private ClientManager() {}
 
-    public static synchronized ClientManager getInstance() {
-        if (instance == null) {
-            instance = new ClientManager();
-        }
-        return instance;
+    public static ClientManager getInstance() {
+        return INSTANCE;
     }
 
     public void addClient(ClientHandler client) {
         connectedClients.add(client);
-        System.out.println("Connect: Client kết nối. Tổng: " + connectedClients.size());
+        log.info("Client kết nối. Tổng: {}", connectedClients.size());
     }
 
     public void removeClient(ClientHandler client) {
         connectedClients.remove(client);
-        System.out.println("Disconnect: Client ngắt kết nối. Tổng: " + connectedClients.size());
+        log.info("Client ngắt kết nối. Tổng: {}", connectedClients.size());
     }
 
     /**
-     * Gửi event tới tất cả client đang kết nối.
+     * Gửi event tới tất cả client đang kết nối. Việc ghi thực tế nằm ở thread riêng của từng client
+     * nên một client chậm không làm chậm thread gọi.
      */
     public void broadcastToAll(AuctionEvent event) {
         String eventJson = gson.toJson(event);
@@ -49,6 +51,15 @@ public class ClientManager {
 
     public void broadcastEvent(AuctionEvent event) {
         broadcastToAll(event);
+    }
+
+    /** Ngắt mọi kết nối đang đăng nhập bằng tài khoản này (ví dụ khi admin xoá tài khoản). */
+    public void disconnectUser(int userId) {
+        for (ClientHandler client : connectedClients) {
+            if (client.getCurrentUserId() == userId) {
+                client.close();
+            }
+        }
     }
 
     public int getConnectedCount() {

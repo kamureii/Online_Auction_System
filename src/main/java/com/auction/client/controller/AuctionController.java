@@ -2,11 +2,11 @@ package com.auction.client.controller;
 
 import com.auction.client.navigation.SceneNavigator;
 import com.auction.client.service.ServerConnector;
+import com.auction.client.util.Async;
 import com.auction.client.ui.RealtimeToast;
 import com.auction.shared.model.AuctionSession;
 import com.auction.shared.model.Bid;
 import com.auction.shared.model.RegularUser;
-import com.auction.shared.network.Response;
 import com.auction.shared.observer.AuctionEvent;
 import com.auction.shared.observer.AuctionEventListener;
 import javafx.animation.KeyFrame;
@@ -329,14 +329,16 @@ public class AuctionController implements AuctionEventListener {
                 return;
             }
 
-            Response res = connector.placeBid(currentAuctionId, userId, bidAmount);
-
-            if (res != null && "SUCCESS".equals(res.getStatus())) {
-                showMessage("Trả giá thành công!", Color.GREEN);
-                bidAmountField.clear();
-            } else {
-                showMessage(res != null ? res.getMessage() : "Lỗi kết nối!", Color.RED);
-            }
+            int auctionId = currentAuctionId;
+            showMessage("Đang gửi giá...", Color.GRAY);
+            Async.run(() -> connector.placeBid(auctionId, userId, bidAmount), res -> {
+                if (res != null && "SUCCESS".equals(res.getStatus())) {
+                    showMessage("Trả giá thành công!", Color.GREEN);
+                    bidAmountField.clear();
+                } else {
+                    showMessage(res != null ? res.getMessage() : "Lỗi kết nối!", Color.RED);
+                }
+            });
         } catch (NumberFormatException e) {
             showMessage("Vui lòng nhập số hợp lệ!", Color.RED);
         }
@@ -381,16 +383,18 @@ public class AuctionController implements AuctionEventListener {
                 return;
             }
 
-            Response res = connector.setAutoBid(currentAuctionId, userId, maxBid, increment);
-            if (res != null && "SUCCESS".equals(res.getStatus())) {
-                autoBidStatusLabel.setText("Đấu giá tự động đang hoạt động");
-                setLabelState(autoBidStatusLabel, "auction-state-success");
-                setAutoBidActive(true);
-            } else {
-                autoBidStatusLabel.setText("Lỗi: " + (res != null ? res.getMessage() : ""));
-                setLabelState(autoBidStatusLabel, "auction-state-error");
-                setAutoBidActive(false);
-            }
+            int auctionId = currentAuctionId;
+            Async.run(() -> connector.setAutoBid(auctionId, userId, maxBid, increment), res -> {
+                if (res != null && "SUCCESS".equals(res.getStatus())) {
+                    autoBidStatusLabel.setText("Đấu giá tự động đang hoạt động");
+                    setLabelState(autoBidStatusLabel, "auction-state-success");
+                    setAutoBidActive(true);
+                } else {
+                    autoBidStatusLabel.setText("Lỗi: " + (res != null ? res.getMessage() : ""));
+                    setLabelState(autoBidStatusLabel, "auction-state-error");
+                    setAutoBidActive(false);
+                }
+            });
         } catch (NumberFormatException e) {
             autoBidStatusLabel.setText("Số không hợp lệ!");
             setLabelState(autoBidStatusLabel, "auction-state-error");
@@ -406,12 +410,14 @@ public class AuctionController implements AuctionEventListener {
             return;
         }
         int userId = ServerConnector.currentUser.getId();
-        Response res = connector.cancelAutoBid(currentAuctionId, userId);
-        if (res != null && "SUCCESS".equals(res.getStatus())) {
-            autoBidStatusLabel.setText("Đã tắt đấu giá tự động");
-            setLabelState(autoBidStatusLabel, "auction-state-muted");
-            setAutoBidActive(false);
-        }
+        int auctionId = currentAuctionId;
+        Async.run(() -> connector.cancelAutoBid(auctionId, userId), res -> {
+            if (res != null && "SUCCESS".equals(res.getStatus())) {
+                autoBidStatusLabel.setText("Đã tắt đấu giá tự động");
+                setLabelState(autoBidStatusLabel, "auction-state-muted");
+                setAutoBidActive(false);
+            }
+        });
     }
 
     @FXML

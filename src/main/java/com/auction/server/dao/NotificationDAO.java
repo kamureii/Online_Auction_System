@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class NotificationDAO {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(NotificationDAO.class);
+
     public static boolean create(Notification notification) {
         String sql = "INSERT INTO notifications (user_id, title, message, type, reference_id) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -18,7 +20,7 @@ public class NotificationDAO {
             ps.setInt(5, notification.getReferenceId());
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Loi tao thong bao: " + e.getMessage());
+            log.error("Loi tao thong bao: " + e.getMessage());
             return false;
         }
     }
@@ -43,7 +45,7 @@ public class NotificationDAO {
                 notifications.add(n);
             }
         } catch (SQLException e) {
-            System.err.println("Loi lay thong bao: " + e.getMessage());
+            log.error("Loi lay thong bao: " + e.getMessage());
         }
         return notifications;
     }
@@ -55,7 +57,7 @@ public class NotificationDAO {
             ps.setInt(1, userId);
             return ps.executeUpdate() >= 0;
         } catch (SQLException e) {
-            System.err.println("Loi danh dau thong bao: " + e.getMessage());
+            log.error("Loi danh dau thong bao: " + e.getMessage());
             return false;
         }
     }

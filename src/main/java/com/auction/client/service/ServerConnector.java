@@ -6,12 +6,10 @@ import com.auction.shared.dto.ProfileDTO;
 import com.auction.shared.dto.RegisterDTO;
 import com.auction.shared.dto.RuntimeStatusDTO;
 import com.auction.shared.config.AppConfig;
-import com.auction.shared.factory.ItemFactory;
 import com.auction.shared.factory.UserFactory;
 import com.auction.shared.model.AuctionSession;
 import com.auction.shared.model.Bid;
 import com.auction.shared.model.CartItem;
-import com.auction.shared.model.Item;
 import com.auction.shared.model.Notification;
 import com.auction.shared.model.User;
 import com.auction.shared.network.Request;
@@ -39,6 +37,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
+import javax.net.ssl.SSLSocketFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -54,6 +56,10 @@ public class ServerConnector {
     private static final int CONNECT_TIMEOUT_MS = 3_000;
     private static final int REQUEST_TIMEOUT_SECONDS = 15;
     private static final int LOGIN_TIMEOUT_SECONDS = 8;
+    private static final long KEEP_ALIVE_SECONDS = 45;
+    private static final boolean TLS_ENABLED =
+            Boolean.parseBoolean(config("auction.tls.enabled", "AUCTION_TLS_ENABLED", "false"));
+    private static final String REST_BASE = (TLS_ENABLED ? "https://" : "http://") + SERVER_IP + ":" + REST_PORT;
 
     private final Gson gson = new Gson();
     private final BlockingQueue<Response> responses = new LinkedBlockingQueue<>();
@@ -69,6 +75,9 @@ public class ServerConnector {
     private Thread listenerThread;
     private volatile boolean running;
     private volatile String sessionToken;
+    private final AtomicLong requestIds = new AtomicLong();
+    private volatile boolean needsReauth;
+    private ScheduledExecutorService keepAlive;
 
     public static User currentUser;
 
@@ -99,11 +108,13 @@ public class ServerConnector {
 
         closeResources();
         try {
-            socket = new Socket();
+            socket = TLS_ENABLED ? SSLSocketFactory.getDefault().createSocket() : new Socket();
             socket.connect(new InetSocketAddress(SERVER_IP, SERVER_PORT), CONNECT_TIMEOUT_MS);
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             running = true;
+            // Kết nối mới chưa có người dùng trên server: nếu đã đăng nhập trước đó thì phải xác thực lại bằng token.
+            needsReauth = sessionToken != null;
             startListener();
             return true;
         } catch (IOException e) {
@@ -144,10 +155,11 @@ public class ServerConnector {
 
         currentUser = parseUser(response.getPayload());
         if (currentUser == null) {
-            currentUser = null;
             disconnect();
             return new Response("ERROR", "Không đọc được phiên đăng nhập.", null);
         }
+        sessionToken = parseSessionToken(response.getPayload());
+        startKeepAlive();
         return response;
     }
 
@@ -165,30 +177,10 @@ public class ServerConnector {
         return postAuthJson("/api/auth/password-reset/confirm", body);
     }
 
+    /** Vai trò do server quyết định; client không được chọn. */
     public Response register(String username, String email, String password, String fullName) {
-        return register(username, email, password, fullName, "BIDDER");
-    }
-
-    public Response register(String username, String email, String password, String fullName, String role) {
-        RegisterDTO registerData = new RegisterDTO(username, email, password, fullName, role);
+        RegisterDTO registerData = new RegisterDTO(username, email, password, fullName);
         return sendRequest(new Request("REGISTER", gson.toJson(registerData)));
-    }
-
-    public List<Item> getProducts() {
-        Response response = sendRequest(new Request("GET_ITEMS", ""));
-        if (isSuccess(response)) {
-            return parseItems(response.getPayload());
-        }
-        return new ArrayList<>();
-    }
-
-    public List<AuctionSession> getAuctions() {
-        Response response = sendRequest(new Request("GET_AUCTIONS", ""));
-        if (isSuccess(response)) {
-            Type listType = new TypeToken<List<AuctionSession>>() {}.getType();
-            return gson.fromJson(response.getPayload(), listType);
-        }
-        return new ArrayList<>();
     }
 
     public List<AuctionSession> getPublicAuctions(String category, String status) {
@@ -217,21 +209,6 @@ public class ServerConnector {
             return gson.fromJson(response.getPayload(), listType);
         }
         return new ArrayList<>();
-    }
-
-    public Response addProduct(Item item) {
-        return sendRequest(new Request("ADD_ITEM", gson.toJson(item)));
-    }
-
-    public Response addProduct(String name, String description, String category,
-                               double startingPrice, double minIncrement, int sellerId, int auctionHours) {
-        return addProduct(name, description, category, startingPrice, minIncrement, sellerId, auctionHours, 0, "");
-    }
-
-    public Response addProduct(String name, String description, String category,
-                               double startingPrice, double minIncrement, int sellerId, int auctionHours,
-                               String imagePath) {
-        return addProduct(name, description, category, startingPrice, minIncrement, sellerId, auctionHours, 0, imagePath);
     }
 
     public Response addProduct(String name, String description, String category,
@@ -357,10 +334,6 @@ public class ServerConnector {
         return sendRequest(new Request("UPDATE_DELIVERY_STATUS", payload.toString()));
     }
 
-    public Response placeBid(Bid bid) {
-        return sendRequest(new Request("PLACE_BID", gson.toJson(bid)));
-    }
-
     public Response placeBid(int auctionId, int userId, double bidAmount) {
         JsonObject payload = new JsonObject();
         payload.addProperty("auctionId", auctionId);
@@ -419,33 +392,16 @@ public class ServerConnector {
         if (token != null && !token.isBlank()) {
             logoutViaRest(token);
         }
+        stopKeepAlive();
         sessionToken = null;
         currentUser = null;
         disconnect();
     }
 
-    private Response loginViaRest(LoginDTO loginData) {
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("http://" + SERVER_IP + ":" + REST_PORT + "/api/auth/login"))
-                    .timeout(Duration.ofSeconds(LOGIN_TIMEOUT_SECONDS))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(loginData)))
-                    .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            return gson.fromJson(response.body(), Response.class);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return new Response("ERROR", "Đăng nhập bị gián đoạn.", null);
-        } catch (Exception e) {
-            return new Response("ERROR", "Không thể kết nối dịch vụ đăng nhập.", null);
-        }
-    }
-
     private Response postAuthJson(String path, JsonObject body) {
         try {
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("http://" + SERVER_IP + ":" + REST_PORT + path))
+                    .uri(URI.create(REST_BASE + path))
                     .timeout(Duration.ofSeconds(LOGIN_TIMEOUT_SECONDS))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
@@ -465,7 +421,7 @@ public class ServerConnector {
             JsonObject body = new JsonObject();
             body.addProperty("token", token);
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("http://" + SERVER_IP + ":" + REST_PORT + "/api/auth/logout"))
+                    .uri(URI.create(REST_BASE + "/api/auth/logout"))
                     .timeout(Duration.ofSeconds(5))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
@@ -482,9 +438,10 @@ public class ServerConnector {
             JsonObject body = new JsonObject();
             body.add("messages", gson.toJsonTree(messages == null ? List.of() : messages));
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("http://" + SERVER_IP + ":" + REST_PORT + "/api/chat"))
+                    .uri(URI.create(REST_BASE + "/api/chat"))
                     .timeout(Duration.ofSeconds(35))
                     .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + (sessionToken == null ? "" : sessionToken))
                     .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body)))
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -500,7 +457,7 @@ public class ServerConnector {
     public RuntimeStatusDTO getRuntimeStatus() {
         try {
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("http://" + SERVER_IP + ":" + REST_PORT + "/api/config/status"))
+                    .uri(URI.create(REST_BASE + "/api/config/status"))
                     .timeout(Duration.ofSeconds(5))
                     .GET()
                     .build();
@@ -523,24 +480,89 @@ public class ServerConnector {
             if (!connect()) {
                 return new Response("ERROR", "Không thể kết nối tới Server. Hãy kiểm tra server đã bật chưa!", null);
             }
-
-            responses.clear();
-            out.println(gson.toJson(request));
-            if (out.checkError()) {
-                disconnect();
-                return new Response("ERROR", "Không thể gửi request tới Server.", null);
+            if (needsReauth) {
+                reauthenticateLocked();
             }
+            return exchangeLocked(request.getAction(), request.getPayload());
+        }
+    }
 
-            try {
-                Response response = responses.poll(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    /** Gửi một request và chờ đúng response mang cùng mã tương quan. Phải gọi khi đang giữ requestLock. */
+    private Response exchangeLocked(String action, String payload) {
+        long id = requestIds.incrementAndGet();
+        responses.clear();
+        PrintWriter writer = out;
+        if (writer == null) {
+            return new Response("ERROR", "Mất kết nối tới Server.", null);
+        }
+        writer.println(gson.toJson(new Request(action, payload, id)));
+        if (writer.checkError()) {
+            disconnect();
+            return new Response("ERROR", "Không thể gửi request tới Server.", null);
+        }
+
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(REQUEST_TIMEOUT_SECONDS);
+        try {
+            while (true) {
+                long remaining = deadline - System.nanoTime();
+                Response response = remaining <= 0 ? null : responses.poll(remaining, TimeUnit.NANOSECONDS);
                 if (response == null) {
                     return new Response("ERROR", "Server không phản hồi kịp thời.", null);
                 }
-                return response;
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return new Response("ERROR", "Request bị gián đoạn.", null);
+                // Response đến muộn của request đã hết hạn trước đó thì bỏ qua, không gán nhầm cho request này.
+                if (response.getRequestId() == id || response.getRequestId() == 0) {
+                    return response;
+                }
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new Response("ERROR", "Request bị gián đoạn.", null);
+        }
+    }
+
+    private void reauthenticateLocked() {
+        String token = sessionToken;
+        needsReauth = false;
+        if (token == null) {
+            return;
+        }
+        Response response = exchangeLocked("AUTH_SOCKET", token);
+        if (response == null || !"SUCCESS".equals(response.getStatus())) {
+            // Token hết hạn hoặc bị thu hồi: các request tiếp theo sẽ báo cần đăng nhập lại.
+            sessionToken = null;
+        }
+    }
+
+    private void startKeepAlive() {
+        stopKeepAlive();
+        keepAlive = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "AuctionKeepAlive");
+            thread.setDaemon(true);
+            return thread;
+        });
+        keepAlive.scheduleWithFixedDelay(() -> {
+            if (currentUser != null) {
+                sendRequest(new Request("PING", ""));
+            }
+        }, KEEP_ALIVE_SECONDS, KEEP_ALIVE_SECONDS, TimeUnit.SECONDS);
+    }
+
+    private void stopKeepAlive() {
+        ScheduledExecutorService executor = keepAlive;
+        keepAlive = null;
+        if (executor != null) {
+            executor.shutdownNow();
+        }
+    }
+
+    private String parseSessionToken(String payload) {
+        try {
+            JsonObject object = JsonParser.parseString(payload).getAsJsonObject();
+            return object.has("sessionToken") && !object.get("sessionToken").isJsonNull()
+                    ? object.get("sessionToken").getAsString()
+                    : null;
+        } catch (Exception e) {
+            return null;
         }
     }
 
@@ -676,36 +698,6 @@ public class ServerConnector {
         return user;
     }
 
-    private List<Item> parseItems(String payload) {
-        List<Item> items = new ArrayList<>();
-        if (payload == null || payload.isBlank()) {
-            return items;
-        }
-        try {
-            JsonArray array = JsonParser.parseString(payload).getAsJsonArray();
-            for (JsonElement element : array) {
-                if (!element.isJsonObject()) {
-                    continue;
-                }
-                JsonObject object = element.getAsJsonObject();
-                Item item = ItemFactory.createItem(
-                        readString(object, "category"),
-                        readInt(object, "id"),
-                        readString(object, "name"),
-                        readString(object, "description"),
-                        readDouble(object, "startingPrice"),
-                        readDouble(object, "currentPrice"),
-                        readDouble(object, "minIncrement"),
-                        readInt(object, "sellerId")
-                );
-                item.setImagePath(readString(object, "imagePath"));
-                items.add(item);
-            }
-        } catch (Exception ignored) {
-        }
-        return items;
-    }
-
     private String readString(JsonObject object, String key) {
         if (object == null || !object.has(key) || object.get(key).isJsonNull()) {
             return "";
@@ -718,13 +710,6 @@ public class ServerConnector {
             return 0;
         }
         return object.get(key).getAsInt();
-    }
-
-    private double readDouble(JsonObject object, String key) {
-        if (object == null || !object.has(key) || object.get(key).isJsonNull()) {
-            return 0;
-        }
-        return object.get(key).getAsDouble();
     }
 
     private synchronized void closeResources() {

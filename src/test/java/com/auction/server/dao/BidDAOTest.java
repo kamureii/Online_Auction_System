@@ -60,12 +60,22 @@ class BidDAOTest {
     }
 
     @Test
-    void binResultKeepsEnteredBidAmountWhenBidExceedsBin() {
-        BidDAO.PlaceBidResult result = BidDAO.PlaceBidResult.success(
-                2_500, 1_500, 1, 2, "Item", true, 2_000);
+    void effectiveBidAmountCapsBinPurchaseAtBinPrice() {
+        assertEquals(2_000, BidDAO.effectiveBidAmount(2_000, 2_500));
+        assertEquals(2_000, BidDAO.effectiveBidAmount(2_000, 2_000));
+        assertEquals(1_800, BidDAO.effectiveBidAmount(2_000, 1_800));
+        assertEquals(2_500, BidDAO.effectiveBidAmount(0, 2_500));
+    }
 
-        assertEquals(2_500, result.getBidAmount());
+    @Test
+    void placeBidResultExposesBinAndExtensionDetails() {
+        Timestamp newEnd = new Timestamp(System.currentTimeMillis() + 90_000);
+        BidDAO.PlaceBidResult result = BidDAO.PlaceBidResult.success(
+                2_000, 1_500, 1, 2, "Item", true, 2_000, newEnd);
+
+        assertEquals(2_000, result.getBidAmount());
         assertEquals(2_000, result.getBinPrice());
         assertEquals(true, result.isBinTriggered());
+        assertEquals(newEnd, result.getNewEndTime());
     }
 }

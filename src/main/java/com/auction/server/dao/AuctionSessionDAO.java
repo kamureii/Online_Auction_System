@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 
 public class AuctionSessionDAO {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AuctionSessionDAO.class);
 
     /**
      * Tạo phiên đấu giá mới, trả về id.
@@ -32,7 +33,7 @@ public class AuctionSessionDAO {
             ResultSet keys = ps.getGeneratedKeys();
             if (keys.next()) return keys.getInt(1);
         } catch (SQLException e) {
-            System.err.println("Lỗi tạo phiên đấu giá: " + e.getMessage());
+            log.error("Lỗi tạo phiên đấu giá: " + e.getMessage());
         }
         return -1;
     }
@@ -55,7 +56,7 @@ public class AuctionSessionDAO {
                 list.add(mapResultSet(rs));
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy danh sách phiên đấu giá: " + e.getMessage());
+            log.error("Lỗi lấy danh sách phiên đấu giá: " + e.getMessage());
         }
         return list;
     }
@@ -77,7 +78,7 @@ public class AuctionSessionDAO {
                 list.add(mapResultSet(rs));
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy danh sách phiên quản trị: " + e.getMessage());
+            log.error("Lỗi lấy danh sách phiên quản trị: " + e.getMessage());
         }
         return list;
     }
@@ -111,7 +112,7 @@ public class AuctionSessionDAO {
             ResultSet rs = ps.executeQuery();
             while (rs.next()) list.add(mapResultSet(rs));
         } catch (SQLException e) {
-            System.err.println("Loi lay danh sach dau gia public: " + e.getMessage());
+            log.error("Loi lay danh sach dau gia public: " + e.getMessage());
         }
         return list;
     }
@@ -125,7 +126,7 @@ public class AuctionSessionDAO {
             ResultSet rs = ps.executeQuery();
             while (rs.next()) list.add(mapResultSet(rs));
         } catch (SQLException e) {
-            System.err.println("Loi lay dau gia cua nguoi ban: " + e.getMessage());
+            log.error("Loi lay dau gia cua nguoi ban: " + e.getMessage());
         }
         return list;
     }
@@ -141,7 +142,7 @@ public class AuctionSessionDAO {
             ResultSet rs = ps.executeQuery();
             while (rs.next()) list.add(mapResultSet(rs));
         } catch (SQLException e) {
-            System.err.println("Loi lay dau gia da tham gia: " + e.getMessage());
+            log.error("Loi lay dau gia da tham gia: " + e.getMessage());
         }
         return list;
     }
@@ -158,7 +159,7 @@ public class AuctionSessionDAO {
             ResultSet rs = ps.executeQuery();
             while (rs.next()) list.add(mapResultSet(rs));
         } catch (SQLException e) {
-            System.err.println("Loi lay lich su dau gia: " + e.getMessage());
+            log.error("Loi lay lich su dau gia: " + e.getMessage());
         }
         return list;
     }
@@ -181,7 +182,7 @@ public class AuctionSessionDAO {
                 list.add(mapResultSet(rs));
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy phiên đấu giá active: " + e.getMessage());
+            log.error("Lỗi lấy phiên đấu giá active: " + e.getMessage());
         }
         return list;
     }
@@ -201,7 +202,7 @@ public class AuctionSessionDAO {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return mapResultSet(rs);
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy phiên đấu giá: " + e.getMessage());
+            log.error("Lỗi lấy phiên đấu giá: " + e.getMessage());
         }
         return null;
     }
@@ -222,73 +223,9 @@ public class AuctionSessionDAO {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return mapResultSet(rs);
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy phiên active theo item: " + e.getMessage());
+            log.error("Lỗi lấy phiên active theo item: " + e.getMessage());
         }
         return null;
-    }
-
-    /**
-     * Cập nhật trạng thái phiên đấu giá.
-     */
-    public static boolean updateStatus(int auctionId, String newStatus) {
-        String sql = "UPDATE auction_sessions SET status = ? WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, newStatus);
-            ps.setInt(2, auctionId);
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            System.err.println("Lỗi cập nhật trạng thái phiên: " + e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Đặt winner cho phiên đấu giá.
-     */
-    public static boolean setWinner(int auctionId, int winnerId) {
-        String sql = "UPDATE auction_sessions SET winner_id = ?, status = 'FINISHED' WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, winnerId);
-            ps.setInt(2, auctionId);
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            System.err.println("Lỗi đặt winner: " + e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Cập nhật giá cao nhất.
-     */
-    public static boolean updateHighestBid(int auctionId, double newPrice) {
-        String sql = "UPDATE auction_sessions SET current_highest_bid = ? WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setDouble(1, newPrice);
-            ps.setInt(2, auctionId);
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            System.err.println("Lỗi cập nhật giá cao nhất: " + e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Gia hạn thời gian kết thúc (anti-sniping).
-     */
-    public static boolean extendEndTime(int auctionId, Timestamp newEndTime) {
-        String sql = "UPDATE auction_sessions SET end_time = ? WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setTimestamp(1, newEndTime);
-            ps.setInt(2, auctionId);
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            System.err.println("Lỗi gia hạn phiên: " + e.getMessage());
-            return false;
-        }
     }
 
     /**
@@ -307,7 +244,7 @@ public class AuctionSessionDAO {
                 list.add(mapResultSet(rs));
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy phiên hết hạn: " + e.getMessage());
+            log.error("Lỗi lấy phiên hết hạn: " + e.getMessage());
         }
         return list;
     }
@@ -328,9 +265,39 @@ public class AuctionSessionDAO {
                 list.add(mapResultSet(rs));
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy phiên sẵn sàng: " + e.getMessage());
+            log.error("Lỗi lấy phiên sẵn sàng: " + e.getMessage());
         }
         return list;
+    }
+
+    /**
+     * Chuyển phiên OPEN sang RUNNING. Có guard theo trạng thái nên không thể "hồi sinh" phiên đã huỷ.
+     */
+    public static boolean startAuction(int auctionId) {
+        String sql = "UPDATE auction_sessions SET status = 'RUNNING' WHERE id = ? AND status = 'OPEN'";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, auctionId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            log.error("Lỗi bắt đầu phiên: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Item còn phiên chưa kết thúc hoặc đã bán thì không được sửa/xoá.
+     */
+    public static boolean hasLiveOrSoldAuction(int itemId) {
+        String sql = "SELECT 1 FROM auction_sessions WHERE item_id = ? AND status IN ('OPEN','RUNNING','FINISHED','PAID') LIMIT 1";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, itemId);
+            return ps.executeQuery().next();
+        } catch (SQLException e) {
+            log.error("Lỗi kiểm tra phiên của item: {}", e.getMessage());
+            return true;
+        }
     }
 
     /**
@@ -343,7 +310,7 @@ public class AuctionSessionDAO {
             ps.setInt(1, auctionId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Lá»—i há»§y phiÃªn: " + e.getMessage());
+            log.error("Lỗi hủy phiên: " + e.getMessage());
             return false;
         }
     }
@@ -352,13 +319,32 @@ public class AuctionSessionDAO {
      * Chuyen phien da ket thuc sang trang thai da thanh toan.
      */
     public static boolean markPaid(int auctionId) {
-        String sql = "UPDATE auction_sessions SET status = 'PAID', checkout_status = 'PAID' WHERE id = ? AND status = 'FINISHED'";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, auctionId);
-            return ps.executeUpdate() > 0;
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                boolean updated;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE auction_sessions SET status = 'PAID', checkout_status = 'PAID' WHERE id = ? AND status = 'FINISHED'")) {
+                    ps.setInt(1, auctionId);
+                    updated = ps.executeUpdate() > 0;
+                }
+                if (updated) {
+                    // Đơn hàng phải khớp với phiên, nếu không scheduler sẽ huỷ đơn "PENDING" quá hạn và phạt người mua.
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE cart_items SET status = 'PAID', delivery_status = 'WAITING_SHIPMENT', paid_at = NOW() " +
+                                    "WHERE auction_id = ? AND status = 'PENDING'")) {
+                        ps.setInt(1, auctionId);
+                        ps.executeUpdate();
+                    }
+                }
+                conn.commit();
+                return updated;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
         } catch (SQLException e) {
-            System.err.println("Loi danh dau PAID: " + e.getMessage());
+            log.error("Lỗi đánh dấu PAID: {}", e.getMessage());
             return false;
         }
     }
@@ -371,7 +357,7 @@ public class AuctionSessionDAO {
             ps.setInt(2, auctionId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Loi cap nhat checkout pending: " + e.getMessage());
+            log.error("Loi cap nhat checkout pending: " + e.getMessage());
             return false;
         }
     }
@@ -383,7 +369,7 @@ public class AuctionSessionDAO {
             ps.setInt(1, auctionId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Loi cap nhat checkout canceled: " + e.getMessage());
+            log.error("Loi cap nhat checkout canceled: " + e.getMessage());
             return false;
         }
     }
@@ -409,7 +395,7 @@ public class AuctionSessionDAO {
             highlightAuction(auctionId, new Timestamp(System.currentTimeMillis() + 86400000L));
             return auctionId;
         } catch (Exception e) {
-            System.err.println("Loi relist auction: " + e.getMessage());
+            log.error("Loi relist auction: " + e.getMessage());
             return -1;
         }
     }
@@ -422,7 +408,7 @@ public class AuctionSessionDAO {
             ps.setInt(2, auctionId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Loi highlight auction: " + e.getMessage());
+            log.error("Loi highlight auction: " + e.getMessage());
             return false;
         }
     }

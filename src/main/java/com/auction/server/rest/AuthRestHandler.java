@@ -3,6 +3,7 @@ package com.auction.server.rest;
 import com.auction.server.auth.LoginService;
 import com.auction.server.auth.PasswordResetService;
 import com.auction.server.auth.SessionRegistry;
+import com.auction.server.security.SecurityPolicies;
 import com.auction.shared.dto.LoginDTO;
 import com.auction.shared.model.User;
 import com.auction.shared.network.Response;
@@ -14,6 +15,8 @@ import java.io.IOException;
 import java.util.Optional;
 
 public class AuthRestHandler implements HttpHandler {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AuthRestHandler.class);
+
     private final LoginService loginService;
     private final SessionRegistry sessionRegistry;
     private final PasswordResetService passwordResetService;
@@ -62,11 +65,20 @@ public class AuthRestHandler implements HttpHandler {
 
         try {
             LoginDTO login = JsonHttpUtils.GSON.fromJson(JsonHttpUtils.readBody(exchange), LoginDTO.class);
+            String ip = JsonHttpUtils.clientIp(exchange);
+            String account = login.getLoginIdentifier() == null ? "" : login.getLoginIdentifier().trim();
+            if (SecurityPolicies.LOGIN_BY_ACCOUNT.isLocked(account) || SecurityPolicies.LOGIN_BY_IP.isLocked(ip)) {
+                JsonHttpUtils.sendTooManyRequests(exchange, "Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau ít phút.");
+                return;
+            }
             Optional<User> user = loginService.authenticate(login.getLoginIdentifier(), login.getPassword());
             if (user.isEmpty()) {
+                SecurityPolicies.LOGIN_BY_ACCOUNT.recordFailure(account);
+                SecurityPolicies.LOGIN_BY_IP.recordFailure(ip);
                 JsonHttpUtils.sendResponse(exchange, 401, new Response("ERROR", "Sai tài khoản hoặc mật khẩu.", null));
                 return;
             }
+            SecurityPolicies.LOGIN_BY_ACCOUNT.recordSuccess(account);
 
             SessionRegistry.SessionToken session = sessionRegistry.createSession(user.get());
             JsonObject payload = new JsonObject();
@@ -76,7 +88,7 @@ public class AuthRestHandler implements HttpHandler {
             JsonHttpUtils.sendResponse(exchange, 200,
                     new Response("SUCCESS", "Đăng nhập thành công!", payload.toString()));
         } catch (IllegalStateException e) {
-            System.err.println("REST login configuration error: " + e.getMessage());
+            log.error("REST login configuration error: " + e.getMessage());
             JsonHttpUtils.sendResponse(exchange, 503,
                     new Response("ERROR", "Khong the dang nhap luc nay. Vui long kiem tra cau hinh may chu.", null));
         } catch (Exception e) {
@@ -112,6 +124,12 @@ public class AuthRestHandler implements HttpHandler {
 
         try {
             JsonObject body = JsonHttpUtils.GSON.fromJson(JsonHttpUtils.readBody(exchange), JsonObject.class);
+            String identifier = readString(body, "loginIdentifier").toLowerCase(java.util.Locale.ROOT);
+            if (!SecurityPolicies.PASSWORD_RESET_BY_IP.tryAcquire(JsonHttpUtils.clientIp(exchange))
+                    || !SecurityPolicies.PASSWORD_RESET_BY_ACCOUNT.tryAcquire(identifier)) {
+                JsonHttpUtils.sendTooManyRequests(exchange, "Bạn yêu cầu mã quá nhiều lần. Vui lòng thử lại sau.");
+                return;
+            }
             Response response = passwordResetService.requestReset(readString(body, "loginIdentifier"));
             JsonHttpUtils.sendResponse(exchange, statusFor(response), response);
         } catch (Exception e) {
@@ -128,6 +146,10 @@ public class AuthRestHandler implements HttpHandler {
 
         try {
             JsonObject body = JsonHttpUtils.GSON.fromJson(JsonHttpUtils.readBody(exchange), JsonObject.class);
+            if (!SecurityPolicies.PASSWORD_RESET_CONFIRM_BY_IP.tryAcquire(JsonHttpUtils.clientIp(exchange))) {
+                JsonHttpUtils.sendTooManyRequests(exchange, "Bạn thử quá nhiều lần. Vui lòng thử lại sau.");
+                return;
+            }
             Response response = passwordResetService.confirmReset(
                     readString(body, "loginIdentifier"),
                     readString(body, "code"),

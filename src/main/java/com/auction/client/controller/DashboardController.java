@@ -2,6 +2,7 @@ package com.auction.client.controller;
 
 import com.auction.client.navigation.SceneNavigator;
 import com.auction.client.service.ServerConnector;
+import com.auction.client.util.Async;
 import com.auction.client.ui.AiChatWidget;
 import com.auction.client.ui.RealtimeToast;
 import com.auction.client.util.VietnamAddressData;
@@ -57,7 +58,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
@@ -1092,22 +1092,13 @@ public class DashboardController implements AuctionEventListener {
             finalProfile.setCity(selectedValue(city));
             finalProfile.setDistrict(selectedValue(district));
             finalProfile.setWard(selectedValue(ward));
-            if (save.getText().length() >= 0) {
-                runResponseTask(save, "Đang cập nhật...", () -> connector.updateProfile(finalProfile), res -> {
-                    showToast(res != null && "SUCCESS".equals(res.getStatus())
-                            ? "Đã cập nhật hồ sơ."
-                            : (res != null ? res.getMessage() : "Không cập nhật được hồ sơ."),
-                            res != null && "SUCCESS".equals(res.getStatus()));
-                    setupHeader();
-                });
-                return;
-            }
-            Response res = connector.updateProfile(finalProfile);
-            showToast(res != null && "SUCCESS".equals(res.getStatus())
-                    ? "Đã cập nhật hồ sơ."
-                    : (res != null ? res.getMessage() : "Không cập nhật được hồ sơ."),
-                    res != null && "SUCCESS".equals(res.getStatus()));
-            setupHeader();
+            runResponseTask(save, "Đang cập nhật...", () -> connector.updateProfile(finalProfile), res -> {
+                showToast(res != null && "SUCCESS".equals(res.getStatus())
+                        ? "Đã cập nhật hồ sơ."
+                        : (res != null ? res.getMessage() : "Không cập nhật được hồ sơ."),
+                        res != null && "SUCCESS".equals(res.getStatus()));
+                setupHeader();
+            });
         });
 
         VBox page = accountPage("Thông tin cá nhân", trust, grid, emailVerification, save);
@@ -1128,16 +1119,10 @@ public class DashboardController implements AuctionEventListener {
         sendCode.getStyleClass().add("secondary-button");
         sendCode.setDisable(profile.isEmailVerified());
         sendCode.setOnAction(e -> {
-            if (sendCode.getText().length() >= 0) {
-                runResponseTask(sendCode, "Đang gửi...", connector::requestEmailVerification, response -> {
-                    boolean success = response != null && "SUCCESS".equals(response.getStatus());
-                    showToast(response != null ? response.getMessage() : "Không gửi được mã xác thực email.", success);
-                });
-                return;
-            }
-            Response response = connector.requestEmailVerification();
-            boolean success = response != null && "SUCCESS".equals(response.getStatus());
-            showToast(response != null ? response.getMessage() : "Không gửi được mã xác thực email.", success);
+            runResponseTask(sendCode, "Đang gửi...", connector::requestEmailVerification, response -> {
+                boolean success = response != null && "SUCCESS".equals(response.getStatus());
+                showToast(response != null ? response.getMessage() : "Không gửi được mã xác thực email.", success);
+            });
         });
 
         Button confirm = new Button("Xác nhận mã");
@@ -1145,23 +1130,14 @@ public class DashboardController implements AuctionEventListener {
         confirm.setDisable(profile.isEmailVerified());
         confirm.setOnAction(e -> {
             String code = codeField.getText();
-            if (confirm.getText().length() >= 0) {
-                runResponseTask(confirm, "Đang xác nhận...", () -> connector.confirmEmailVerification(code),
-                        response -> {
-                            boolean success = response != null && "SUCCESS".equals(response.getStatus());
-                            showToast(response != null ? response.getMessage() : "Không xác thực được email.", success);
-                            if (success) {
-                                renderProfile(body);
-                            }
-                        });
-                return;
-            }
-            Response response = connector.confirmEmailVerification(codeField.getText());
-            boolean success = response != null && "SUCCESS".equals(response.getStatus());
-            showToast(response != null ? response.getMessage() : "Không xác thực được email.", success);
-            if (success) {
-                renderProfile(body);
-            }
+            runResponseTask(confirm, "Đang xác nhận...", () -> connector.confirmEmailVerification(code),
+                    response -> {
+                        boolean success = response != null && "SUCCESS".equals(response.getStatus());
+                        showToast(response != null ? response.getMessage() : "Không xác thực được email.", success);
+                        if (success) {
+                            renderProfile(body);
+                        }
+                    });
         });
 
         HBox controls = new HBox(10, sendCode, codeField, confirm);
@@ -1216,23 +1192,14 @@ public class DashboardController implements AuctionEventListener {
             editablePayment.setBankName(bank.getText());
             editablePayment.setCardExpiry(expiry.getText());
             editablePayment.setAccountOwnerName(owner.getText());
-            if (save.getText().length() >= 0) {
-                runResponseTask(save, "Đang cập nhật...", () -> connector.updatePaymentProfile(editablePayment),
-                        res -> {
-                            showToast(res != null && "SUCCESS".equals(res.getStatus())
-                                    ? "Đã cập nhật phương thức thanh toán."
-                                    : (res != null ? res.getMessage() : "Không cập nhật được thanh toán."),
-                                    res != null && "SUCCESS".equals(res.getStatus()));
-                            csv.clear();
-                        });
-                return;
-            }
-            Response res = connector.updatePaymentProfile(editablePayment);
-            showToast(res != null && "SUCCESS".equals(res.getStatus())
-                    ? "Đã cập nhật phương thức thanh toán."
-                    : (res != null ? res.getMessage() : "Không cập nhật được thanh toán."),
-                    res != null && "SUCCESS".equals(res.getStatus()));
-            csv.clear();
+            runResponseTask(save, "Đang cập nhật...", () -> connector.updatePaymentProfile(editablePayment),
+                    res -> {
+                        showToast(res != null && "SUCCESS".equals(res.getStatus())
+                                ? "Đã cập nhật phương thức thanh toán."
+                                : (res != null ? res.getMessage() : "Không cập nhật được thanh toán."),
+                                res != null && "SUCCESS".equals(res.getStatus()));
+                        csv.clear();
+                    });
         });
 
         VBox page = accountPage("Phương thức thanh toán", note, grid, save);
@@ -1280,11 +1247,10 @@ public class DashboardController implements AuctionEventListener {
         }
         Button markRead = new Button("Đánh dấu đã đọc");
         markRead.getStyleClass().add("secondary-button");
-        markRead.setOnAction(e -> {
-            connector.markNotificationsRead();
+        markRead.setOnAction(e -> Async.run(connector::markNotificationsRead, ignored -> {
             updateNotificationBadge();
             renderNotifications(body);
-        });
+        }));
         body.getChildren().setAll(wrapScroll(accountPage("Thông báo", list, markRead)));
     }
 
@@ -1337,11 +1303,10 @@ public class DashboardController implements AuctionEventListener {
         Button markRead = new Button("Đánh dấu đã đọc");
         markRead.getStyleClass().add("secondary-button");
         markRead.setMaxWidth(Double.MAX_VALUE);
-        markRead.setOnAction(e -> {
-            connector.markNotificationsRead();
+        markRead.setOnAction(e -> Async.run(connector::markNotificationsRead, ignored -> {
             updateNotificationBadge();
             showNotificationPopover();
-        });
+        }));
         Button viewAll = new Button("Xem tất cả");
         viewAll.getStyleClass().add("ghost-button");
         viewAll.setMaxWidth(Double.MAX_VALUE);
@@ -1389,8 +1354,8 @@ public class DashboardController implements AuctionEventListener {
     private void renderMyAuctionsLoaded(StackPane body, List<List<AuctionSession>> lists) {
         TabPane tabs = new TabPane();
         tabs.getStyleClass().add("account-tabs");
-        Tab owned = new Tab("Đấu giá của bạn", auctionListView(connector.getMyAuctions()));
-        Tab joined = new Tab("Đấu giá đã tham gia", auctionListView(connector.getJoinedAuctions()));
+        Tab owned = new Tab("Đấu giá của bạn", auctionListView(lists.get(0)));
+        Tab joined = new Tab("Đấu giá đã tham gia", auctionListView(lists.get(1)));
         owned.setClosable(false);
         joined.setClosable(false);
         tabs.getTabs().addAll(owned, joined);
@@ -2147,36 +2112,23 @@ public class DashboardController implements AuctionEventListener {
                 return;
             }
 
-            if (data.name.length() >= 0) {
-                CompletableFuture
-                        .supplyAsync(() -> connector.addProduct(data.name.trim(), safeText(data.description),
-                                data.category,
-                                startingPrice, minIncrement, currentUser.getId(), hours, binPrice, safeText(data.imagePath)))
-                        .thenAccept(res -> Platform.runLater(() -> {
-                            boolean ok = res != null && "SUCCESS".equals(res.getStatus());
-                            if (ok) {
-                                hideOverlay();
-                                refreshAuctionList();
-                            }
-                            showToast(ok ? "Phiên đấu giá đã được đăng."
-                                    : (res != null ? res.getMessage() : "Máy chủ không phản hồi."), ok);
-                        }))
-                        .exceptionally(error -> {
-                            Platform.runLater(() -> showToast("Không thể đăng bán lúc này.", false));
-                            return null;
-                        });
-                return;
-            }
-
-            Response res = connector.addProduct(data.name.trim(), safeText(data.description), data.category,
-                    startingPrice, minIncrement, currentUser.getId(), hours, binPrice, safeText(data.imagePath));
-            boolean ok = res != null && "SUCCESS".equals(res.getStatus());
-            if (ok) {
-                hideOverlay();
-                refreshAuctionList();
-            }
-            showToast(ok ? "Phiên đấu giá đã được đăng." : (res != null ? res.getMessage() : "Máy chủ không phản hồi."),
-                    ok);
+            CompletableFuture
+                    .supplyAsync(() -> connector.addProduct(data.name.trim(), safeText(data.description),
+                            data.category,
+                            startingPrice, minIncrement, currentUser.getId(), hours, binPrice, safeText(data.imagePath)))
+                    .thenAccept(res -> Platform.runLater(() -> {
+                        boolean ok = res != null && "SUCCESS".equals(res.getStatus());
+                        if (ok) {
+                            hideOverlay();
+                            refreshAuctionList();
+                        }
+                        showToast(ok ? "Phiên đấu giá đã được đăng."
+                                : (res != null ? res.getMessage() : "Máy chủ không phản hồi."), ok);
+                    }))
+                    .exceptionally(error -> {
+                        Platform.runLater(() -> showToast("Không thể đăng bán lúc này.", false));
+                        return null;
+                    });
         } catch (IllegalArgumentException e) {
             showToast(e.getMessage(), false);
         }
@@ -2205,12 +2157,17 @@ public class DashboardController implements AuctionEventListener {
         Button relist = new Button("Đăng lại");
         relist.getStyleClass().add("primary-button");
         relist.setOnAction(e -> {
-            Response res = connector.relistAuction(auctionId, name.getText(), details.getText(), imagePath.getText());
-            boolean ok = res != null && "SUCCESS".equals(res.getStatus());
-            hideOverlay();
-            showToast(ok ? "Sản phẩm đã được đăng lại."
-                    : (res != null ? res.getMessage() : "Không thể đăng lại sản phẩm."), ok);
-            refreshAuctionList();
+            relist.setDisable(true);
+            String newName = name.getText();
+            String newDetails = details.getText();
+            String newImage = imagePath.getText();
+            Async.run(() -> connector.relistAuction(auctionId, newName, newDetails, newImage), res -> {
+                boolean ok = res != null && "SUCCESS".equals(res.getStatus());
+                hideOverlay();
+                showToast(ok ? "Sản phẩm đã được đăng lại."
+                        : (res != null ? res.getMessage() : "Không thể đăng lại sản phẩm."), ok);
+                refreshAuctionList();
+            });
         });
         showOverlay("Đăng lại sản phẩm", "Chỉnh nội dung trước khi đưa phiên quay lại sàn.", form,
                 List.of(relist, closeButton()));
@@ -2228,12 +2185,19 @@ public class DashboardController implements AuctionEventListener {
             alert.getButtonTypes().setAll(agree, cancel);
             if (alert.showAndWait().orElse(cancel) != agree)
                 return;
-            Response res = connector.joinAuction(session.getId());
-            if (res == null || !"SUCCESS".equals(res.getStatus())) {
-                showToast(res != null ? res.getMessage() : "Không thể tham gia phòng.", false);
-                return;
-            }
+            Async.run(() -> connector.joinAuction(session.getId()), res -> {
+                if (res == null || !"SUCCESS".equals(res.getStatus())) {
+                    showToast(res != null ? res.getMessage() : "Không thể tham gia phòng.", false);
+                    return;
+                }
+                enterAuctionRoom(session);
+            });
+            return;
         }
+        enterAuctionRoom(session);
+    }
+
+    private void enterAuctionRoom(AuctionSession session) {
         leaveDashboard();
         String auctionRoomView = SceneNavigator.isDarkMode()
                 ? "/views/AuctionRoomDark.fxml"
@@ -2318,9 +2282,10 @@ public class DashboardController implements AuctionEventListener {
             notificationBtn.setGraphic(notificationGraphic(0));
             return;
         }
-        List<Notification> notifications = connector.getNotifications();
-        long unread = notifications.stream().filter(n -> !n.isRead()).count();
-        notificationBtn.setGraphic(notificationGraphic(unread));
+        Async.run(connector::getNotifications, notifications -> {
+            long unread = notifications.stream().filter(n -> !n.isRead()).count();
+            notificationBtn.setGraphic(notificationGraphic(unread));
+        });
     }
 
     private Node notificationGraphic(long unread) {
