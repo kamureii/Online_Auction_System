@@ -1,5 +1,6 @@
 package com.auction.server.core;
 
+import com.auction.server.auth.SessionRegistry;
 import com.auction.server.dao.AuctionSessionDAO;
 import com.auction.server.dao.CartDAO;
 import com.auction.server.dao.NotificationDAO;
@@ -25,6 +26,7 @@ public class AuctionScheduler {
     private static AuctionScheduler instance;
     private final ScheduledExecutorService scheduler;
     private final UserDAO userDAO = new UserDAO();
+    private long ticks;
 
     private AuctionScheduler() {
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -51,6 +53,9 @@ public class AuctionScheduler {
             startReadyAuctions();
             finishExpiredAuctions();
             cancelOverdueCheckouts();
+            if (++ticks % 60 == 0) {
+                SessionRegistry.getInstance().clearExpired();
+            }
         } catch (Exception e) {
             log.error("Lỗi AuctionScheduler: {}", e.getMessage(), e);
         }

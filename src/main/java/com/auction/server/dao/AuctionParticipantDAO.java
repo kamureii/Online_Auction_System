@@ -16,20 +16,6 @@ public class AuctionParticipantDAO {
         return upsertParticipant(auctionId, userId, "BIDDER");
     }
 
-    public static String getRoomRole(int auctionId, int userId) {
-        String sql = "SELECT room_role FROM auction_participants WHERE auction_id = ? AND user_id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, auctionId);
-            ps.setInt(2, userId);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) return rs.getString("room_role");
-        } catch (SQLException e) {
-            log.error("Loi lay vai tro phong dau gia: " + e.getMessage());
-        }
-        return null;
-    }
-
     private static boolean upsertParticipant(int auctionId, int userId, String role) {
         String sql = "INSERT INTO auction_participants (auction_id, user_id, room_role) VALUES (?, ?, ?) " +
                 "ON DUPLICATE KEY UPDATE room_role = VALUES(room_role)";

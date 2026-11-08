@@ -84,29 +84,4 @@ public class AutoBidDAO {
         }
     }
 
-    /**
-     * Lấy đấu giá tự động đang hoạt động của người dùng trong một phiên.
-     */
-    public static AutoBid getUserAutoBid(int auctionId, int userId) {
-        String sql = "SELECT * FROM auto_bids WHERE auction_id = ? AND user_id = ? AND is_active = TRUE ORDER BY created_at DESC LIMIT 1";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, auctionId);
-            ps.setInt(2, userId);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                return new AutoBid(
-                        rs.getInt("id"),
-                        rs.getInt("auction_id"),
-                        rs.getInt("user_id"),
-                        rs.getDouble("max_bid"),
-                        rs.getDouble("bid_increment"),
-                        rs.getBoolean("is_active")
-                );
-            }
-        } catch (SQLException e) {
-            log.error("Lỗi lấy đấu giá tự động của người dùng: " + e.getMessage());
-        }
-        return null;
-    }
 }

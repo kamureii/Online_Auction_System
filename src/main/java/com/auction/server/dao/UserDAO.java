@@ -88,7 +88,13 @@ public class UserDAO {
             log.error("Lỗi đăng nhập: " + e.getMessage());
             throw new IllegalStateException("Không thể kết nối database. Hãy kiểm tra MySQL và cấu hình database.", e);
         }
+        // Tài khoản không tồn tại vẫn tốn một lần băm để thời gian phản hồi không lộ tài khoản nào có thật.
+        PasswordHasher.verify(password, DummyHash.VALUE);
         return null;
+    }
+
+    private static final class DummyHash {
+        static final String VALUE = PasswordHasher.hash("dummy-password-for-constant-time-login");
     }
 
     public User findByLoginIdentifier(String loginIdentifier) {

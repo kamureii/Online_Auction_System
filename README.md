@@ -50,7 +50,6 @@ mysql -u root -p -e "CREATE DATABASE online_auction_test"
 (Get-Content database\init.sql) -replace 'online_auction','online_auction_test' | mysql -u root -p
 $env:AUCTION_DB_URL = "jdbc:mysql://localhost:3306/online_auction_test"
 $env:AUCTION_DB_TESTS = "true"
-$env:AUCTION_DB_CONCURRENCY_TEST = "true"
 mvn test
 ```
 
