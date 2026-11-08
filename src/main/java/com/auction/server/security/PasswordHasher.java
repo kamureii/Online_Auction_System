@@ -10,7 +10,7 @@ import javax.crypto.spec.PBEKeySpec;
 public final class PasswordHasher {
     private static final String PREFIX = "pbkdf2";
     private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
-    private static final int ITERATIONS = 120_000;
+    private static final int ITERATIONS = 600_000;
     private static final int SALT_BYTES = 16;
     private static final int KEY_BITS = 256;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -30,7 +30,7 @@ public final class PasswordHasher {
     public static boolean verify(String password, String stored) {
         if (password == null || stored == null) return false;
         if (!isHash(stored)) {
-            return password.equals(stored);
+            return false;
         }
 
         String[] parts = stored.split("\\$");
@@ -43,6 +43,22 @@ public final class PasswordHasher {
             return constantTimeEquals(expected, actual);
         } catch (IllegalArgumentException e) {
             return false;
+        }
+    }
+
+    /** Hash cũ dùng ít vòng lặp hơn mức hiện tại nên cần băm lại sau khi đăng nhập thành công. */
+    public static boolean needsRehash(String stored) {
+        if (!isHash(stored)) {
+            return true;
+        }
+        String[] parts = stored.split("\\$");
+        if (parts.length != 4) {
+            return true;
+        }
+        try {
+            return Integer.parseInt(parts[1]) < ITERATIONS;
+        } catch (NumberFormatException e) {
+            return true;
         }
     }
 

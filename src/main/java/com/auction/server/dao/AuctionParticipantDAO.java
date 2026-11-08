@@ -6,6 +6,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class AuctionParticipantDAO {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AuctionParticipantDAO.class);
+
     public static boolean ensureSellerParticipant(int auctionId, int userId) {
         return upsertParticipant(auctionId, userId, "SELLER");
     }
@@ -23,7 +25,7 @@ public class AuctionParticipantDAO {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return rs.getString("room_role");
         } catch (SQLException e) {
-            System.err.println("Loi lay vai tro phong dau gia: " + e.getMessage());
+            log.error("Loi lay vai tro phong dau gia: " + e.getMessage());
         }
         return null;
     }
@@ -38,7 +40,7 @@ public class AuctionParticipantDAO {
             ps.setString(3, role);
             return ps.executeUpdate() >= 0;
         } catch (SQLException e) {
-            System.err.println("Loi cap nhat nguoi tham gia phong dau gia: " + e.getMessage());
+            log.error("Loi cap nhat nguoi tham gia phong dau gia: " + e.getMessage());
             return false;
         }
     }

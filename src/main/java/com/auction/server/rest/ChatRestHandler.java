@@ -1,5 +1,8 @@
 package com.auction.server.rest;
 
+import com.auction.server.auth.SessionRegistry;
+import com.auction.server.security.SecurityPolicies;
+import com.auction.shared.model.User;
 import com.auction.shared.network.Response;
 import com.auction.shared.config.AppConfig;
 import com.google.gson.JsonArray;
@@ -53,6 +56,17 @@ public class ChatRestHandler implements HttpHandler {
             return;
         }
 
+        User user = authenticate(exchange);
+        if (user == null) {
+            JsonHttpUtils.sendResponse(exchange, 401,
+                    new Response("ERROR", "Vui lòng đăng nhập để dùng Trợ lý AI.", null));
+            return;
+        }
+        if (!SecurityPolicies.CHAT_BY_USER.tryAcquire(String.valueOf(user.getId()))) {
+            JsonHttpUtils.sendTooManyRequests(exchange, "Bạn gửi tin nhắn quá nhanh. Vui lòng thử lại sau ít phút.");
+            return;
+        }
+
         String apiKey = resolveApiKey();
         if (apiKey == null || apiKey.isBlank()) {
             JsonHttpUtils.sendResponse(exchange, 503,
@@ -74,6 +88,9 @@ public class ChatRestHandler implements HttpHandler {
             }
 
             String model = AppConfig.get("gemini.model", "GEMINI_MODEL", DEFAULT_MODEL);
+            if (!model.matches("[A-Za-z0-9._-]{1,64}")) {
+                model = DEFAULT_MODEL;
+            }
             JsonObject geminiRequest = buildGeminiRequest(messages);
             HttpRequest geminiHttpRequest = HttpRequest.newBuilder()
                     .uri(URI.create("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent"))
@@ -103,6 +120,15 @@ public class ChatRestHandler implements HttpHandler {
             JsonHttpUtils.sendResponse(exchange, 500,
                     new Response("ERROR", "Không thể kết nối Gemini lúc này.", null));
         }
+    }
+
+    /** Lấy người dùng từ header {@code Authorization: Bearer <token>} do LOGIN socket cấp. */
+    private User authenticate(HttpExchange exchange) {
+        String header = exchange.getRequestHeaders().getFirst("Authorization");
+        if (header == null || !header.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            return null;
+        }
+        return SessionRegistry.getInstance().validate(header.substring(7).trim()).orElse(null);
     }
 
     /**

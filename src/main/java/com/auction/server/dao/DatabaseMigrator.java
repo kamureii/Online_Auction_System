@@ -14,6 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class DatabaseMigrator {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DatabaseMigrator.class);
+
     private static final String MIGRATION_PATH = "database/migrate.sql";
 
     private DatabaseMigrator() {
@@ -29,13 +31,13 @@ public final class DatabaseMigrator {
 
     public static int migrateIfEnabled() throws SQLException {
         if (!isAutoMigrationEnabled()) {
-            System.out.println("Database auto-migration is disabled.");
+            log.info("Database auto-migration is disabled.");
             return 0;
         }
         String script = loadMigrationScript();
         List<String> statements = splitSqlStatements(script);
         if (statements.isEmpty()) {
-            System.out.println("Database migration skipped: no statements found.");
+            log.info("Database migration skipped: no statements found.");
             return 0;
         }
 
@@ -51,7 +53,7 @@ public final class DatabaseMigrator {
                 }
             }
         }
-        System.out.println("Database migration completed. Statements executed: " + executed);
+        log.info("Database migration completed. Statements executed: " + executed);
         return executed;
     }
 

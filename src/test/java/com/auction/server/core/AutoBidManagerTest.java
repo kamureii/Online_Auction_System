@@ -43,4 +43,28 @@ class AutoBidManagerTest {
 
         assertEquals(1_250, AutoBidManager.calculateNextBid(autoBid, 1_000, 120));
     }
+
+    @Test
+    void proxyBidWithoutRivalsUsesRegularStep() {
+        AutoBid only = new AutoBid(1, 10, 5_000, 100);
+
+        assertEquals(1_100, AutoBidManager.calculateProxyBid(only, List.of(only), 99, 1_000, 100));
+    }
+
+    @Test
+    void proxyBidJumpsJustAboveRivalCeilingInsteadOfStepping() {
+        AutoBid challenger = new AutoBid(1, 10, 5_000, 100);
+        AutoBid leader = new AutoBid(1, 11, 3_000, 100);
+
+        // Đối thủ có trần 3.000 nên đặt thẳng 3.100 thay vì nhích từng 100.
+        assertEquals(3_100, AutoBidManager.calculateProxyBid(challenger, List.of(challenger, leader), 11, 1_000, 100));
+    }
+
+    @Test
+    void proxyBidIsCappedAtOwnMaximum() {
+        AutoBid challenger = new AutoBid(1, 10, 2_500, 100);
+        AutoBid leader = new AutoBid(1, 11, 3_000, 100);
+
+        assertEquals(2_500, AutoBidManager.calculateProxyBid(challenger, List.of(challenger, leader), 11, 1_000, 100));
+    }
 }

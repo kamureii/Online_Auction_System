@@ -8,6 +8,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ItemDAO {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ItemDAO.class);
+
+    /**
+     * Chỉ được sửa/xoá item khi không còn phiên OPEN/RUNNING/FINISHED/PAID. Điều kiện nằm ngay trong câu lệnh
+     * UPDATE/DELETE nên kiểm tra và ghi là một thao tác nguyên tử.
+     */
+    private static final String NO_LIVE_OR_SOLD_AUCTION =
+            "NOT EXISTS (SELECT 1 FROM auction_sessions a WHERE a.item_id = items.id " +
+            "AND a.status IN ('OPEN','RUNNING','FINISHED','PAID'))";
+
 
     public static List<Item> getAllItems() {
         List<Item> items = new ArrayList<>();
@@ -19,7 +29,7 @@ public class ItemDAO {
                 items.add(mapResultSetToItem(rs));
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy danh sách items: " + e.getMessage());
+            log.error("Lỗi lấy danh sách items: " + e.getMessage());
         }
         return items;
     }
@@ -32,7 +42,7 @@ public class ItemDAO {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return mapResultSetToItem(rs);
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy item: " + e.getMessage());
+            log.error("Lỗi lấy item: " + e.getMessage());
         }
         return null;
     }
@@ -48,7 +58,7 @@ public class ItemDAO {
                 items.add(mapResultSetToItem(rs));
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy items theo seller: " + e.getMessage());
+            log.error("Lỗi lấy items theo seller: " + e.getMessage());
         }
         return items;
     }
@@ -72,13 +82,13 @@ public class ItemDAO {
                 return keys.getInt(1);
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi thêm item: " + e.getMessage());
+            log.error("Lỗi thêm item: " + e.getMessage());
         }
         return -1;
     }
 
     public static boolean updateItem(Item item) {
-        String sql = "UPDATE items SET name = ?, description = ?, category = ?, starting_price = ?, min_increment = ?, image_path = ? WHERE id = ? AND seller_id = ?";
+        String sql = "UPDATE items SET name = ?, description = ?, category = ?, starting_price = ?, min_increment = ?, image_path = ? WHERE id = ? AND seller_id = ? AND " + NO_LIVE_OR_SOLD_AUCTION;
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, item.getName());
@@ -91,20 +101,20 @@ public class ItemDAO {
             ps.setInt(8, item.getSellerId());
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Lỗi cập nhật item: " + e.getMessage());
+            log.error("Lỗi cập nhật item: " + e.getMessage());
             return false;
         }
     }
 
     public static boolean deleteItem(int itemId, int sellerId) {
-        String sql = "DELETE FROM items WHERE id = ? AND seller_id = ?";
+        String sql = "DELETE FROM items WHERE id = ? AND seller_id = ? AND " + NO_LIVE_OR_SOLD_AUCTION;
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, itemId);
             ps.setInt(2, sellerId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Lỗi xóa item: " + e.getMessage());
+            log.error("Lỗi xóa item: " + e.getMessage());
             return false;
         }
     }
@@ -117,7 +127,7 @@ public class ItemDAO {
             ps.setInt(2, itemId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Lỗi cập nhật giá: " + e.getMessage());
+            log.error("Lỗi cập nhật giá: " + e.getMessage());
             return false;
         }
     }

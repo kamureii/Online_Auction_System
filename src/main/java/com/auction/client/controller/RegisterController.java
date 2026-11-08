@@ -2,12 +2,14 @@ package com.auction.client.controller;
 
 import com.auction.client.navigation.SceneNavigator;
 import com.auction.client.service.ServerConnector;
-import com.auction.shared.network.Response;
+import com.auction.shared.validation.AccountValidator;
 import javafx.application.Platform;
-import javafx.fxml.FXML;
-import javafx.scene.control.*;
-import javafx.scene.paint.Color;
 import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextField;
+import javafx.scene.paint.Color;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -37,87 +39,38 @@ public class RegisterController {
         String password = passwordField.getText();
         String confirmPassword = confirmPasswordField.getText();
 
-        if (username.length() >= 0) {
-            if (!validateRegistration(fullname, email, username, password, confirmPassword)) {
-                return;
-            }
+        String error = validateInput(fullname, email, username, password, confirmPassword);
+        if (error != null) {
+            showError(error);
+            return;
+        }
 
-            setFormDisabled(true);
-            messageLabel.setTextFill(Color.GRAY);
-            messageLabel.setText("Đang tạo tài khoản...");
-            CompletableFuture
-                    .supplyAsync(() -> {
-                        ServerConnector connector = ServerConnector.getInstance();
-                        return connector.register(username, email, password, fullname);
-                    })
-                    .thenAccept(res -> Platform.runLater(() -> {
+        setFormDisabled(true);
+        messageLabel.setTextFill(Color.GRAY);
+        messageLabel.setText("Đang tạo tài khoản...");
+        CompletableFuture
+                .supplyAsync(() -> ServerConnector.getInstance().register(username, email, password, fullname))
+                .thenAccept(res -> Platform.runLater(() -> {
+                    setFormDisabled(false);
+                    if (res != null && "SUCCESS".equals(res.getStatus())) {
+                        messageLabel.setTextFill(Color.GREEN);
+                        messageLabel.setText("Đăng ký thành công! Đang chuyển về đăng nhập...");
+
+                        javafx.animation.PauseTransition pause =
+                                new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1));
+                        pause.setOnFinished(e -> SceneNavigator.showLogin());
+                        pause.play();
+                    } else {
+                        showError(res != null ? res.getMessage() : "Đăng ký thất bại!");
+                    }
+                }))
+                .exceptionally(failure -> {
+                    Platform.runLater(() -> {
                         setFormDisabled(false);
-                        if (res != null && "SUCCESS".equals(res.getStatus())) {
-                            messageLabel.setTextFill(Color.GREEN);
-                            messageLabel.setText("Đăng ký thành công! Đang chuyển về đăng nhập...");
-
-                            javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1));
-                            pause.setOnFinished(e -> SceneNavigator.showLogin());
-                            pause.play();
-                        } else {
-                            showError(res != null ? res.getMessage() : "Đăng ký thất bại!");
-                        }
-                    }))
-                    .exceptionally(error -> {
-                        Platform.runLater(() -> {
-                            setFormDisabled(false);
-                            showError("Không thể đăng ký lúc này.");
-                        });
-                        return null;
+                        showError("Không thể đăng ký lúc này.");
                     });
-            return;
-        }
-
-        // Validation
-        if (fullname.isEmpty() || email.isEmpty() || username.isEmpty()
-                || password.isEmpty() || confirmPassword.isEmpty()) {
-            showError("Vui lòng điền đầy đủ tất cả các trường!");
-            return;
-        }
-
-        if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
-            showError("Email không hợp lệ!");
-            return;
-        }
-
-        if (username.length() < 3) {
-            showError("Tên đăng nhập phải có ít nhất 3 ký tự!");
-            return;
-        }
-
-        if (password.length() < 6) {
-            showError("Mật khẩu phải có ít nhất 6 ký tự!");
-            return;
-        }
-
-        if (!password.equals(confirmPassword)) {
-            showError("Mật khẩu xác nhận không khớp!");
-            return;
-        }
-
-        // Gửi request
-        ServerConnector connector = ServerConnector.getInstance();
-        if (!connector.isConnected()) {
-            connector.connect();
-        }
-
-        Response res = connector.register(username, email, password, fullname);
-
-        if (res != null && "SUCCESS".equals(res.getStatus())) {
-            messageLabel.setTextFill(Color.GREEN);
-            messageLabel.setText("Đăng ký thành công! Đang chuyển về đăng nhập...");
-
-            javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1));
-            pause.setOnFinished(e -> SceneNavigator.showLogin());
-            pause.play();
-        } else {
-            showError(res != null ? res.getMessage() : "Đăng ký thất bại!");
-        }
+                    return null;
+                });
     }
 
     private void showError(String message) {
@@ -125,30 +78,20 @@ public class RegisterController {
         messageLabel.setText(message);
     }
 
-    private boolean validateRegistration(String fullname, String email, String username,
-                                         String password, String confirmPassword) {
-        if (fullname.isEmpty() || email.isEmpty() || username.isEmpty()
-                || password.isEmpty() || confirmPassword.isEmpty()) {
-            showError("Vui lòng điền đầy đủ tất cả các trường!");
-            return false;
+    /** Dùng chung quy tắc với server ({@link AccountValidator}); server vẫn kiểm tra lại. */
+    private String validateInput(String fullname, String email, String username,
+                                 String password, String confirmPassword) {
+        if (confirmPassword.isEmpty()) {
+            return "Vui lòng điền đầy đủ tất cả các trường!";
         }
-        if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
-            showError("Email không hợp lệ!");
-            return false;
-        }
-        if (username.length() < 3) {
-            showError("Tên đăng nhập phải có ít nhất 3 ký tự!");
-            return false;
-        }
-        if (password.length() < 6) {
-            showError("Mật khẩu phải có ít nhất 6 ký tự!");
-            return false;
+        String error = AccountValidator.validateRegistration(fullname, email, username, password);
+        if (error != null) {
+            return error;
         }
         if (!password.equals(confirmPassword)) {
-            showError("Mật khẩu xác nhận không khớp!");
-            return false;
+            return "Mật khẩu xác nhận không khớp!";
         }
-        return true;
+        return null;
     }
 
     private void setFormDisabled(boolean disabled) {

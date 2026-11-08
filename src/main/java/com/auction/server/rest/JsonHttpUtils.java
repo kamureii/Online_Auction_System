@@ -14,10 +14,25 @@ final class JsonHttpUtils {
 
     private JsonHttpUtils() {}
 
+    static final int MAX_BODY_BYTES = 64 * 1024;
+
+    /** Đọc body nhưng từ chối nếu vượt {@link #MAX_BODY_BYTES}. */
     static String readBody(HttpExchange exchange) throws IOException {
         try (InputStream input = exchange.getRequestBody()) {
-            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+            byte[] bytes = input.readNBytes(MAX_BODY_BYTES + 1);
+            if (bytes.length > MAX_BODY_BYTES) {
+                throw new IOException("Request body too large.");
+            }
+            return new String(bytes, StandardCharsets.UTF_8);
         }
+    }
+
+    static String clientIp(HttpExchange exchange) {
+        return exchange.getRemoteAddress().getAddress().getHostAddress();
+    }
+
+    static void sendTooManyRequests(HttpExchange exchange, String message) throws IOException {
+        sendResponse(exchange, 429, new Response("ERROR", message, null));
     }
 
     static void sendResponse(HttpExchange exchange, int statusCode, Response response) throws IOException {

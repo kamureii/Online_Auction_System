@@ -116,17 +116,6 @@ public class AdminController {
                     Platform.runLater(() -> showMessage("Không tải được dữ liệu quản trị.", false));
                     return null;
                 });
-        if (System.currentTimeMillis() >= 0) return;
-
-        List<User> users = connector.getAllUsers();
-        usersList.addAll(users);
-
-        List<AuctionSession> auctions = connector.getAdminAuctions();
-        auctionsList.addAll(auctions);
-
-        long activeCount = auctions.stream().filter(a -> "RUNNING".equals(a.getStatus())).count();
-        statsLabel.setText(String.format("%d người dùng | %d phiên đấu giá | %d đang diễn ra",
-                users.size(), auctions.size(), activeCount));
     }
 
     @FXML
@@ -143,14 +132,6 @@ public class AdminController {
 
         setPendingAction("Xác nhận xóa người dùng '" + selected.getUsername() + "'?", () -> {
             runAdminAction(() -> connector.deleteUser(selected.getId()), "Đã xóa người dùng.");
-            if (System.currentTimeMillis() >= 0) return;
-            Response res = connector.deleteUser(selected.getId());
-            if (res != null && "SUCCESS".equals(res.getStatus())) {
-                refreshData();
-                showMessage("Đã xóa người dùng.", true);
-            } else {
-                showMessage("Lỗi: " + (res != null ? res.getMessage() : ""), false);
-            }
         });
     }
 
@@ -168,14 +149,6 @@ public class AdminController {
 
         setPendingAction("Xác nhận hủy phiên đấu giá #" + selected.getId() + "?", () -> {
             runAdminAction(() -> connector.cancelAuction(selected.getId()), "Đã hủy phiên đấu giá.");
-            if (System.currentTimeMillis() >= 0) return;
-            Response res = connector.cancelAuction(selected.getId());
-            if (res != null && "SUCCESS".equals(res.getStatus())) {
-                refreshData();
-                showMessage("Đã hủy phiên đấu giá.", true);
-            } else {
-                showMessage("Lỗi: " + (res != null ? res.getMessage() : ""), false);
-            }
         });
     }
 
@@ -193,14 +166,6 @@ public class AdminController {
 
         setPendingAction("Xác nhận đánh dấu đã thanh toán cho phiên #" + selected.getId() + "?", () -> {
             runAdminAction(() -> connector.markAuctionPaid(selected.getId()), "Đã đánh dấu phiên là đã thanh toán.");
-            if (System.currentTimeMillis() >= 0) return;
-            Response res = connector.markAuctionPaid(selected.getId());
-            if (res != null && "SUCCESS".equals(res.getStatus())) {
-                refreshData();
-                showMessage("Đã đánh dấu phiên là đã thanh toán.", true);
-            } else {
-                showMessage("Lỗi: " + (res != null ? res.getMessage() : ""), false);
-            }
         });
     }
 

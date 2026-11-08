@@ -13,6 +13,8 @@ import jakarta.mail.internet.MimeMessage;
 import java.util.Properties;
 
 public class EmailSender {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EmailSender.class);
+
     public SendResult sendVerificationCode(String to, String code) {
         return sendCode(
                 to,
@@ -37,11 +39,11 @@ public class EmailSender {
         SmtpConfig config = SmtpConfig.fromEnvironment();
         if (!config.isConfigured()) {
             if (config.mockConsole()) {
-                System.out.println(mockLabel + " To: " + to + " | Code: " + code);
+                log.info(mockLabel + " To: " + to + " | Code: " + code);
                 return new SendResult(true, false,
                         "SMTP chưa được cấu hình. Mã OTP đã được in trong console server.");
             }
-            System.err.println(mockLabel + " SMTP is not configured; OTP was not logged.");
+            log.error(mockLabel + " SMTP is not configured; OTP was not logged.");
             return new SendResult(false, false,
                     "SMTP chưa được cấu hình. Vui lòng cấu hình SMTP để gửi OTP.");
         }
@@ -69,7 +71,7 @@ public class EmailSender {
             Transport.send(message);
             return new SendResult(true, true, "Mã OTP đã được gửi đến email của bạn.");
         } catch (MessagingException e) {
-            System.err.println("Lỗi gửi email OTP: " + e.getMessage());
+            log.error("Lỗi gửi email OTP: " + e.getMessage());
             return new SendResult(false, false, "Không gửi được email OTP. Vui lòng kiểm tra cấu hình SMTP.");
         }
     }
@@ -97,7 +99,7 @@ public class EmailSender {
             boolean mockConsole = Boolean.parseBoolean(config(
                     "auction.email.mockConsole",
                     "AUCTION_EMAIL_MOCK_CONSOLE",
-                    "true"
+                    "false"
             ));
             return new SmtpConfig(host, port, username, password, from, startTls, ssl, mockConsole);
         }

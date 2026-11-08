@@ -8,6 +8,8 @@ import java.util.List;
 
 public class AutoBidDAO {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AutoBidDAO.class);
+
     public static int createAutoBid(AutoBid autoBid) {
         String sql = "INSERT INTO auto_bids (auction_id, user_id, max_bid, bid_increment) VALUES (?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -20,7 +22,7 @@ public class AutoBidDAO {
             ResultSet keys = ps.getGeneratedKeys();
             if (keys.next()) return keys.getInt(1);
         } catch (SQLException e) {
-            System.err.println("Lỗi tạo đấu giá tự động: " + e.getMessage());
+            log.error("Lỗi tạo đấu giá tự động: " + e.getMessage());
         }
         return -1;
     }
@@ -46,7 +48,7 @@ public class AutoBidDAO {
                 ));
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy đấu giá tự động: " + e.getMessage());
+            log.error("Lỗi lấy đấu giá tự động: " + e.getMessage());
         }
         return list;
     }
@@ -61,7 +63,7 @@ public class AutoBidDAO {
             ps.setInt(1, autoBidId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Lỗi vô hiệu hóa đấu giá tự động: " + e.getMessage());
+            log.error("Lỗi vô hiệu hóa đấu giá tự động: " + e.getMessage());
             return false;
         }
     }
@@ -77,7 +79,7 @@ public class AutoBidDAO {
             ps.setInt(2, userId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Lỗi vô hiệu hóa đấu giá tự động của người dùng: " + e.getMessage());
+            log.error("Lỗi vô hiệu hóa đấu giá tự động của người dùng: " + e.getMessage());
             return false;
         }
     }
@@ -103,7 +105,7 @@ public class AutoBidDAO {
                 );
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy đấu giá tự động của người dùng: " + e.getMessage());
+            log.error("Lỗi lấy đấu giá tự động của người dùng: " + e.getMessage());
         }
         return null;
     }

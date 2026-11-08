@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 
 public class UserDAO {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserDAO.class);
 
     public boolean registerUser(User user) {
         String sql = "INSERT INTO users (username, email, password, fullname, role) VALUES (?, ?, ?, ?, ?)";
@@ -25,7 +26,7 @@ public class UserDAO {
             ps.setString(5, user.getRole());
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Lỗi đăng ký: " + e.getMessage());
+            log.error("Lỗi đăng ký: " + e.getMessage());
             return false;
         }
     }
@@ -38,7 +39,7 @@ public class UserDAO {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return rs.getInt(1) > 0;
         } catch (SQLException e) {
-            System.err.println("Lỗi kiểm tra username: " + e.getMessage());
+            log.error("Lỗi kiểm tra username: " + e.getMessage());
         }
         return false;
     }
@@ -51,7 +52,7 @@ public class UserDAO {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return rs.getInt(1) > 0;
         } catch (SQLException e) {
-            System.err.println("Lỗi kiểm tra email: " + e.getMessage());
+            log.error("Lỗi kiểm tra email: " + e.getMessage());
         }
         return false;
     }
@@ -78,13 +79,13 @@ public class UserDAO {
                 );
                 applyTrustFields(user, rs);
                 applyProfileFields(user, rs);
-                if (!PasswordHasher.isHash(storedPassword)) {
+                if (PasswordHasher.needsRehash(storedPassword)) {
                     updatePasswordHash(user.getId(), PasswordHasher.hash(password));
                 }
                 return user;
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi đăng nhập: " + e.getMessage());
+            log.error("Lỗi đăng nhập: " + e.getMessage());
             throw new IllegalStateException("Không thể kết nối database. Hãy kiểm tra MySQL và cấu hình database.", e);
         }
         return null;
@@ -111,7 +112,7 @@ public class UserDAO {
                 return user;
             }
         } catch (SQLException e) {
-            System.err.println("Loi tim tai khoan: " + e.getMessage());
+            log.error("Loi tim tai khoan: " + e.getMessage());
         }
         return null;
     }
@@ -136,7 +137,7 @@ public class UserDAO {
                 return user;
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy user: " + e.getMessage());
+            log.error("Lỗi lấy user: " + e.getMessage());
         }
         return null;
     }
@@ -149,7 +150,7 @@ public class UserDAO {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return rs.getString("username");
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy username: " + e.getMessage());
+            log.error("Lỗi lấy username: " + e.getMessage());
         }
         return "Không xác định";
     }
@@ -174,9 +175,60 @@ public class UserDAO {
                 users.add(user);
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi lấy danh sách user: " + e.getMessage());
+            log.error("Lỗi lấy danh sách user: " + e.getMessage());
         }
         return users;
+    }
+
+    /**
+     * Băm các mật khẩu plaintext còn sót từ dữ liệu cũ. Chạy một lần khi server khởi động.
+     *
+     * @return số tài khoản đã được băm lại
+     */
+    public int hashLegacyPlaintextPasswords() {
+        String select = "SELECT id, password FROM users WHERE password NOT LIKE 'pbkdf2$%'";
+        int migrated = 0;
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(select);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                String plain = rs.getString("password");
+                if (plain == null || plain.isBlank()) {
+                    continue;
+                }
+                if (updatePasswordHash(rs.getInt("id"), PasswordHasher.hash(plain))) {
+                    migrated++;
+                }
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Không thể băm lại mật khẩu cũ: " + e.getMessage(), e);
+        }
+        return migrated;
+    }
+
+    /**
+     * Người dùng còn dữ liệu giao dịch (phiên bán, phiên đang tham gia, đơn hàng) thì không được xoá cứng,
+     * vì khoá ngoại ON DELETE CASCADE sẽ kéo theo xoá phiên, bid và đơn hàng của người khác.
+     */
+    public boolean hasBlockingActivity(int userId) {
+        String sql = "SELECT " +
+                "(SELECT COUNT(*) FROM auction_sessions a JOIN items i ON a.item_id = i.id " +
+                "  WHERE i.seller_id = ? AND a.status IN ('OPEN','RUNNING','FINISHED','PAID')) + " +
+                "(SELECT COUNT(*) FROM auction_sessions a WHERE a.winner_id = ? AND a.status IN ('FINISHED','PAID')) + " +
+                "(SELECT COUNT(*) FROM bids b JOIN auction_sessions a ON b.auction_id = a.id " +
+                "  WHERE b.user_id = ? AND a.status IN ('OPEN','RUNNING')) + " +
+                "(SELECT COUNT(*) FROM cart_items c WHERE c.bidder_id = ? AND c.status <> 'CANCELED') AS total";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (int i = 1; i <= 4; i++) {
+                ps.setInt(i, userId);
+            }
+            ResultSet rs = ps.executeQuery();
+            return !rs.next() || rs.getInt("total") > 0;
+        } catch (SQLException e) {
+            log.error("Không kiểm tra được hoạt động của user {}: {}", userId, e.getMessage());
+            return true;
+        }
     }
 
     public boolean deleteUser(int userId) {
@@ -186,7 +238,7 @@ public class UserDAO {
             ps.setInt(1, userId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Lỗi xóa user: " + e.getMessage());
+            log.error("Lỗi xóa user: " + e.getMessage());
             return false;
         }
     }
@@ -202,7 +254,7 @@ public class UserDAO {
                 return bannedUntil != null && bannedUntil.getTime() > System.currentTimeMillis();
             }
         } catch (SQLException e) {
-            System.err.println("Loi kiem tra ban: " + e.getMessage());
+            log.error("Loi kiem tra ban: " + e.getMessage());
         }
         return false;
     }
@@ -215,7 +267,7 @@ public class UserDAO {
             ps.setInt(1, userId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Loi cong diem uy tin: " + e.getMessage());
+            log.error("Loi cong diem uy tin: " + e.getMessage());
             return false;
         }
     }
@@ -228,7 +280,7 @@ public class UserDAO {
             ps.setInt(1, userId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Loi tru diem uy tin: " + e.getMessage());
+            log.error("Loi tru diem uy tin: " + e.getMessage());
             return false;
         }
     }
@@ -266,7 +318,7 @@ public class UserDAO {
             ps.setInt(13, userId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Loi cap nhat ho so: " + e.getMessage());
+            log.error("Loi cap nhat ho so: " + e.getMessage());
             return false;
         }
     }
@@ -278,7 +330,7 @@ public class UserDAO {
             ps.setInt(1, userId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Loi xac thuc email: " + e.getMessage());
+            log.error("Loi xac thuc email: " + e.getMessage());
             return false;
         }
     }
@@ -298,7 +350,7 @@ public class UserDAO {
                 profile.setAccountOwnerName(rs.getString("account_owner_name"));
             }
         } catch (SQLException e) {
-            System.err.println("Loi lay thong tin thanh toan: " + e.getMessage());
+            log.error("Loi lay thong tin thanh toan: " + e.getMessage());
         }
         return profile;
     }
@@ -324,7 +376,7 @@ public class UserDAO {
             ps.setString(5, trimToLimit(ownerName, 100));
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Loi cap nhat thanh toan: " + e.getMessage());
+            log.error("Loi cap nhat thanh toan: " + e.getMessage());
             return false;
         }
     }
@@ -395,7 +447,7 @@ public class UserDAO {
             ps.setInt(2, userId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Lỗi nâng cấp mật khẩu: " + e.getMessage());
+            log.error("Lỗi nâng cấp mật khẩu: " + e.getMessage());
             return false;
         }
     }

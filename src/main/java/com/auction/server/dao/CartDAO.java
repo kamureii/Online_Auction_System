@@ -1,6 +1,5 @@
 package com.auction.server.dao;
 
-import com.auction.shared.model.AuctionSession;
 import com.auction.shared.model.CartItem;
 
 import java.sql.*;
@@ -10,35 +9,14 @@ import java.util.List;
 import java.util.Locale;
 
 public class CartDAO {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CartDAO.class);
+
     public static final String PAYMENT_COD = "COD";
     public static final String PAYMENT_BANK_TRANSFER = "BANK_TRANSFER";
     public static final String DELIVERY_WAITING_PAYMENT = "WAITING_PAYMENT";
     public static final String DELIVERY_WAITING_SHIPMENT = "WAITING_SHIPMENT";
     public static final String DELIVERY_SHIPPING = "SHIPPING";
     public static final String DELIVERY_DELIVERED = "DELIVERED";
-
-    public static boolean addWonItem(AuctionSession session, int bidderId) {
-        String sql = "INSERT INTO cart_items (auction_id, item_id, bidder_id, winning_price, status, delivery_status, payment_due_at) " +
-                "VALUES (?, ?, ?, ?, 'PENDING', 'WAITING_PAYMENT', ?) " +
-                "ON DUPLICATE KEY UPDATE status = 'PENDING', delivery_status = 'WAITING_PAYMENT', " +
-                "payment_method = NULL, shipping_address = NULL, shipping_phone = NULL, tracking_code = NULL, " +
-                "paid_at = NULL, shipped_at = NULL, delivered_at = NULL";
-        Timestamp dueAt = new Timestamp(System.currentTimeMillis() + 7L * 86400000L);
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, session.getId());
-            ps.setInt(2, session.getItemId());
-            ps.setInt(3, bidderId);
-            ps.setDouble(4, session.getCurrentHighestBid());
-            ps.setTimestamp(5, dueAt);
-            boolean ok = ps.executeUpdate() > 0;
-            AuctionSessionDAO.markCheckoutPending(session.getId(), dueAt);
-            return ok;
-        } catch (SQLException e) {
-            System.err.println("Loi them vao gio hang: " + e.getMessage());
-            return false;
-        }
-    }
 
     public static List<CartItem> getCartItems(int bidderId) {
         String sql = cartSelect() + " WHERE c.bidder_id = ? ORDER BY c.won_at DESC";
@@ -112,7 +90,7 @@ public class CartDAO {
             conn.commit();
             return true;
         } catch (SQLException e) {
-            System.err.println("Loi checkout: " + e.getMessage());
+            log.error("Loi checkout: " + e.getMessage());
             return false;
         }
     }
@@ -164,7 +142,7 @@ public class CartDAO {
             conn.commit();
             return true;
         } catch (SQLException e) {
-            System.err.println("Loi cap nhat giao hang: " + e.getMessage());
+            log.error("Loi cap nhat giao hang: " + e.getMessage());
             return false;
         }
     }
@@ -185,7 +163,7 @@ public class CartDAO {
                 items.add(item);
             }
         } catch (SQLException e) {
-            System.err.println("Loi lay cart qua han: " + e.getMessage());
+            log.error("Loi lay cart qua han: " + e.getMessage());
         }
         return items;
     }
@@ -197,7 +175,7 @@ public class CartDAO {
             ps.setInt(1, cartItemId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Loi huy cart qua han: " + e.getMessage());
+            log.error("Loi huy cart qua han: " + e.getMessage());
             return false;
         }
     }
@@ -227,7 +205,7 @@ public class CartDAO {
         if (value.isBlank()) return null;
         String upper = value.toUpperCase(Locale.ROOT);
         String normalized = normalizeText(value);
-        if (PAYMENT_COD.equals(upper) || "CASH_ON_DELIVERY".equals(upper) || normalized.contains("COD")
+        if (PAYMENT_COD.equals(upper) || "CASH_ON_DELIVERY".equals(upper) || normalized.matches(".*\\bCOD\\b.*")
                 || (normalized.contains("THANH TOAN") && normalized.contains("NHAN HANG"))
                 || normalized.contains("CASH ON DELIVERY")) {
             return PAYMENT_COD;
@@ -296,7 +274,7 @@ public class CartDAO {
                 items.add(mapCartItem(rs));
             }
         } catch (SQLException e) {
-            System.err.println("Loi lay don hang: " + e.getMessage());
+            log.error("Loi lay don hang: " + e.getMessage());
         }
         return items;
     }

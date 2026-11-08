@@ -76,8 +76,9 @@ public class PasswordResetService {
         if (!safeCode.matches("\\d{6}")) {
             return new Response("ERROR", "Mã OTP phải gồm 6 chữ số.", null);
         }
-        if (password.length() < 6) {
-            return new Response("ERROR", "Mật khẩu mới phải có ít nhất 6 ký tự.", null);
+        String passwordError = com.auction.shared.validation.AccountValidator.validatePassword(password);
+        if (passwordError != null) {
+            return new Response("ERROR", passwordError, null);
         }
 
         User user = userDAO.findByLoginIdentifier(identifier);
